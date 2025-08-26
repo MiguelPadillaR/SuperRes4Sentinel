@@ -5,7 +5,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / 'data'
 LR_DIR = DATA_DIR / 'LR'
 HR_DIR = DATA_DIR / 'HR'
-PROC_DIR = DATA_DIR / 'processed'
 OUT_DIR = ROOT / 'out'
 CKPT_DIR = OUT_DIR / 'checkpoints'
 RES_DIR = OUT_DIR / 'res'

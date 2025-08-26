@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from constants import TILE_SIZE_HR, SCALE, RANDOM_SEED
+from utils.constants import TILE_SIZE_HR, SCALE, RANDOM_SEED
 from utils import imread
 
 random.seed(RANDOM_SEED)

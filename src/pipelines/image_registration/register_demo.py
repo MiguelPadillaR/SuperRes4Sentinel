@@ -8,7 +8,7 @@ import numpy as np
 # If running as module inside your project, prefer imports below.
 try:
     from utils import imread, imwrite
-    from constants import PROC_DIR, RES_DIR, SCALE as DEFAULT_SCALE
+    from utils.constants import PROC_DIR, RES_DIR, SCALE as DEFAULT_SCALE
 except Exception:
     # Fallback if run as a standalone script
     def imread(p):
