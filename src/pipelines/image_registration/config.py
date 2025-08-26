@@ -30,7 +30,7 @@ config.sh_token_url = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE
 
 config.save(CONFIG_NAME)
 
-config
+print(SHConfig())
 
 # def sentinelhub_compliance_hook(response):
 #     '''
