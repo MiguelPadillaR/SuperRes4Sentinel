@@ -18,10 +18,10 @@ LON_MIN, LON_MAX = -8.613281,-1.878662   # Andalusia, Spain: -7.344360, -1.79626
 RANDOM_SEED = 42
 TILE_SIZE_HR = 64  # crop size on HR; LR crop will be TILE_SIZE_HR // SCALE
 SCALE = 4           # 2 or 4 recommended for training
-BATCH_SIZE = 8
+BATCH_SIZE = 32
 NUM_WORKERS = 4
 LR_INIT = 2e-4
-EPOCHS = 40
+EPOCHS = 250
 VAL_INTERVAL = 1
 
 # Model

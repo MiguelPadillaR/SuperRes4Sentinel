@@ -62,6 +62,7 @@ def resize(img: np.ndarray, scale: float) -> np.ndarray:
     h, w = img.shape[:2]
     return cv2.resize(img, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_CUBIC)
 
+
 def register_images(img_lr, img_hr):
     # Convert to grayscale
     gray_lr = cv2.cvtColor(img_lr, cv2.COLOR_BGR2GRAY)
