@@ -7,8 +7,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from utils.constants import TILE_SIZE_HR, SCALE, RANDOM_SEED
-from utils import imread
+from src.utils.constants import TILE_SIZE_HR, SCALE, RANDOM_SEED
+from src.utils.utils import imread
 
 random.seed(RANDOM_SEED)
 

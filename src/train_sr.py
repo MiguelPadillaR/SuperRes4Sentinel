@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
-from src.constants import CKPT_DIR
+from src.utils.constants import HR_DIR, LR_DIR, CKPT_DIR
 
 # ---------------- Dataset ---------------- #
 class SRDataset(Dataset):
@@ -62,7 +62,7 @@ class EDSR(nn.Module):
 # ---------------- Training ---------------- #
 def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dataset = SRDataset("data/LR", "data/HR", crop_size=64, scale=4)
+    dataset = SRDataset(LR_DIR, HR_DIR, crop_size=64, scale=4)
     loader = DataLoader(dataset, batch_size=16, shuffle=True)
 
     model = EDSR().to(device)

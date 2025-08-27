@@ -1,13 +1,17 @@
 from pathlib import Path
 
 # Paths (edit as needed)
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / 'data'
 LR_DIR = DATA_DIR / 'LR'
 HR_DIR = DATA_DIR / 'HR'
 OUT_DIR = ROOT / 'out'
 CKPT_DIR = OUT_DIR / 'checkpoints'
 RES_DIR = OUT_DIR / 'res'
+
+# Image pool constants
+LAT_MIN, LAT_MAX = 36.125397, 38.682026  # Andalusia, Spain
+LON_MIN, LON_MAX = -7.344360, -1.796265  # Andalusia, Spain
 
 # Training / preprocessing
 RANDOM_SEED = 42

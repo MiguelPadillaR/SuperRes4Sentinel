@@ -1,8 +1,9 @@
 import torch
+import os
 from PIL import Image
 import torchvision.transforms as T
 from src.train_sr import EDSR
-from src.constants import CKPT_DIR
+from src.utils.constants import LR_DIR, CKPT_DIR, RES_DIR
 
 def super_resolve(img_path, out_path, model_path=str(CKPT_DIR) + "/edsr_x4.pth"):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -22,4 +23,5 @@ def super_resolve(img_path, out_path, model_path=str(CKPT_DIR) + "/edsr_x4.pth")
     print(f"Saved SR image to {out_path}")
 
 if __name__ == "__main__":
-    super_resolve("data/LR/36.627058_-6.051960.png", "out/res/36.627058_-6.051960.png")
+    filename = os.listdir(LR_DIR)[0]
+    super_resolve(LR_DIR / "36.31546_-6.02640_test.png", RES_DIR / "36.31546_-6.02640_test.png")

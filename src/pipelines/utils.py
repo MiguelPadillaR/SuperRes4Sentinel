@@ -1,6 +1,7 @@
 import math
 import random
 from sentinelhub import BBox, CRS
+from src.utils.constants import LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
 
 def get_bbox_from_zoom(lat, lon, size, zoom):
     """
@@ -83,22 +84,18 @@ def get_zoom_from_bbox(bbox: BBox, size: tuple):
     
     return zoom, # google_bbox
 
-def get_random_coordinate_pairs(amount:int):
+def get_n_random_coordinate_pairs(amount:int):
     """
     Generate random coordinates from a bounded zone.
     
     amount: number of coordinate pairs to generate
     
     Returns: list of (lat, lon) tuples
-    """
-    # Get Andalusia, Spain bounds
-    lat_min, lat_max = 36.125397, 38.682026
-    lon_min, lon_max = -7.344360, -1.796265
-    
+    """    
     coordinates = []
     for _ in range(amount):
-        lat = random.uniform(lat_min, lat_max)
-        lon = random.uniform(lon_min, lon_max)
+        lat = random.uniform(LAT_MIN, LAT_MAX)
+        lon = random.uniform(LON_MIN, LON_MAX)
         coordinates.append((lat, lon))
     
     return coordinates
