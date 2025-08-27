@@ -1,20 +1,16 @@
 import io
 from PIL import Image, ImageEnhance
 import requests
+import numpy as np
 from sentinelhub import SHConfig, DataCollection, MimeType, SentinelHubRequest
-from config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
-from utils import *
+from .config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
+from .utils import *
+from src.utils.constants import *
 
 config = SHConfig(CONFIG_NAME)
 
 if not config.sh_client_id or not config.sh_client_secret:
     print("Warning! To use Process API, please provide the credentials (OAuth client ID and client secret).")
-
-# Example location
-lat, lon = 36.627058, -6.051960
-zoom = 17
-size = (255,255)
-coordinates = get_random_coordinate_pairs(40)
 
 # ----------------------------
 # SENTINEL REQUEST
@@ -23,6 +19,13 @@ def download_sentinel_image(lat, lon, size, zoom, filename):
     """
     Fetches a Sentinel image for the given lat, lon, size, and zoom level,
     and saves it to the specified filename.
+    
+    Arguments:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+        size (tuple): Size of the image in pixels (width, height).
+        zoom (int): Zoom level for the image.
+        filename (str): Filename to save the image.
     """
     resolution = 5  # meters per pixel for Sentinel
     bbox = get_bbox_from_zoom(lat, lon, size, zoom)
@@ -64,17 +67,16 @@ def download_sentinel_image(lat, lon, size, zoom, filename):
     )
 
     true_color_imgs = request_true_color.get_data()
-    print(f"Returned data is of type = {type(true_color_imgs)} and length {len(true_color_imgs)}.")
-    print(f"Single element in the list is of type {type(true_color_imgs[-1])} and has shape {true_color_imgs[-1].shape}")
-
     image = true_color_imgs[0]
-    print(f"Image type: {image.dtype}")
 
     sentinel = Image.fromarray(image)
     # Enhance brightness (1.0 = original, >1.0 = brighter, <1.0 = darker)
     enhancer = ImageEnhance.Brightness(sentinel)
-    sentinel = enhancer.enhance(3.5)  # try 1.5x brightness
-    sentinel.save("data/HR/" + filename)
+    sentinel = enhancer.enhance(4.0)
+    filepath = LR_DIR / filename
+    sentinel.save(filepath)
+
+    print(f"Sentinel LR image saved to {filepath}")
 
 # ----------------------------
 # GOOGLE MAPS REQUEST
@@ -83,18 +85,71 @@ def download_google_image(lat, lon, size, zoom, filename):
     """
     Fetches a Google Maps satellite image for the given lat, lon, size, and zoom level,
     and saves it to the specified filename.
+
+    Arguments:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+        size (tuple): Size of the image in pixels (width, height).
+        zoom (int): Zoom level for the image.
+        filename (str): Filename to save the image.
+
+    Returns:
+        is_image_downloaded (bool): True if the image was downloaded and saved, False otherwise.
     """
+    is_image_downloaded = True
+
     url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lon}&zoom={zoom}&size={size[0]}x{size[1]}&maptype=satellite&style=feature:all|element:labels|visibility:off&key={GOOGLE_MAPS_STATIC_API_KEY}"
     resp = requests.get(url)
     google = Image.open(io.BytesIO(resp.content))
-    google.save("data/LR/" + filename)
 
-for pair in coordinates:
-    lat, lon = pair
-    filename = f"{lat[:8]}_{lon[:8]}_test.png"
-    print(f"Fetching images for coordinates: {lat}, {lon}")
-    download_sentinel_image(lat, lon, size, zoom, filename)
-    download_google_image(lat, lon, size, zoom, filename)
+    # Quick sanity check: if file is too small, probably "no imagery"
+    if len(resp.content) < 15_000:  # tweak threshold as needed
+        print(f"No imagery (small file) at {lat},{lon}")
+        return False
 
-print('SIZE', size)
-print('TYPE', type(size))
+    # Check if the image is mainly white (no imagery available)
+    google = Image.open(io.BytesIO(resp.content)).convert("L")
+    arr = np.array(google)
+    std_val = np.std(arr)
+
+    # If almost all pixels are very bright (white background) and there's little variation, it's probably "no imagery"
+    if np.mean(arr) > 230 and std_val < 15:
+        print(f"No imagery available for {lat},{lon}")
+        is_image_downloaded = False
+    else:
+        filepath = HR_DIR / filename
+        google.save(filepath)
+        print(f"Google HR image saved to {filepath}")
+
+    return is_image_downloaded
+
+def download_image_pairs(lat, lon, size, zoom):
+    """
+    Downloads a pair of images (Google Maps and Sentinel) for the given latitude and longitude.
+    
+    Arguments:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+        size (tuple): Size of the image in pixels (width, height).
+        zoom (int): Zoom level for the image.
+        filename (str): Filename to save the image.
+    """
+    is_google_image_downloaded = True
+    filename = f"{str(lat)[:8]}_{str(lon)[:8]}_test.png"
+    print(f"\nFetching images for coordinates: {lat}, {lon}")
+    is_google_image_downloaded = download_google_image(lat, lon, size, zoom, filename)
+    if is_google_image_downloaded:
+        download_sentinel_image(lat, lon, size, zoom, filename)
+    else:
+        lat, lon = get_n_random_coordinate_pairs(1)[0]
+        print(f" Trying with new coordinates:\n{lat},{lon}")
+        download_image_pairs(lat, lon, size, zoom)
+
+if __name__ == "__main__":
+    zoom = 17
+    size = (255,255)
+    coordinates = get_n_random_coordinate_pairs(40)
+
+    for pair in coordinates:
+        lat, lon = pair
+        download_image_pairs(lat, lon, size, zoom)
