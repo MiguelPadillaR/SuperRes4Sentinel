@@ -5,3 +5,5 @@
 out/checkpoints/*
 out/res/*
 *.env
+data/HR/*
+data/LR/*
