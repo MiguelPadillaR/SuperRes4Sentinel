@@ -1,17 +1,11 @@
-from pathlib import Path
-from typing import Dict
-
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from torchvision.utils import save_image
 from tqdm import tqdm
 
 from constants import *
-from dataset import PairedImageDataset
-from model import ModelConfig, build_model
-from utils import imwrite, make_grid, to_uint8
-
+from src.data.dataset import PairedImageDataset
+from src.model.model import ModelConfig, build_model
 
 def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
