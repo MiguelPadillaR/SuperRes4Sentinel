@@ -19,9 +19,10 @@ def list_image_paths(root: Path) -> List[Path]:
 
 
 class PairedImageDataset(Dataset):
-    """Assumes *matching filenames* between LR and HR folders.
-       Example: data/LR/sceneA.png  <-> data/HR/sceneA.png
-       Performs random HR crops (size TILE_SIZE_HR), with aligned LR crops.
+    """
+    Performs random HR crops (size TILE_SIZE_HR), with aligned LR crops.\n
+    Assumes *matching filenames* between LR and HR folders.
+    Example: data/LR/sceneA.png  <-> data/HR/sceneA.png
     """
     def __init__(self, lr_dir: Path, hr_dir: Path, scale: int = SCALE, augment: bool = True):
         self.lr_dir = Path(lr_dir)

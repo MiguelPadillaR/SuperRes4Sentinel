@@ -10,12 +10,13 @@ CKPT_DIR = OUT_DIR / 'checkpoints'
 RES_DIR = OUT_DIR / 'res'
 
 # Image pool constants
-LAT_MIN, LAT_MAX = 36.125397, 38.682026  # Andalusia, Spain
-LON_MIN, LON_MAX = -7.344360, -1.796265  # Andalusia, Spain
+DELTA_DAYS = 10
+LAT_MIN, LAT_MAX = 37.230328, 43.109004  # Andalusia, Spain: 36.125397, 38.682026
+LON_MIN, LON_MAX = -8.613281,-1.878662   # Andalusia, Spain: -7.344360, -1.796265
 
 # Training / preprocessing
 RANDOM_SEED = 42
-TILE_SIZE_HR = 128  # crop size on HR; LR crop will be TILE_SIZE_HR // SCALE
+TILE_SIZE_HR = 64  # crop size on HR; LR crop will be TILE_SIZE_HR // SCALE
 SCALE = 4           # 2 or 4 recommended for training
 BATCH_SIZE = 8
 NUM_WORKERS = 4
