@@ -27,10 +27,10 @@ def train():
     n_train = len(ds) - n_val
     ds_train, ds_val = random_split(ds, [n_train, n_val])
 
-    dl_train = DataLoader(ds_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=True)
-    dl_val = DataLoader(ds_val, batch_size=1, shuffle=False, num_workers=NUM_WORKERS)
+    dl_train = DataLoader(ds_train, batch_size=BATCH_SIZE, shuffle=True, num_workers=N_WORKERS, pin_memory=True)
+    dl_val = DataLoader(ds_val, batch_size=1, shuffle=False, num_workers=N_WORKERS)
 
-    cfg = ModelConfig(name=MODEL_NAME, scale=SCALE, n_resblocks=NUM_RESBLOCKS, n_feats=N_FEATS)
+    cfg = ModelConfig(name=MODEL_NAME, scale=SCALE, n_resblocks=N_RESBLOCKS, n_feats=N_FEATS)
     model = build_model(cfg).to(device)
 
     criterion = nn.L1Loss()
@@ -40,6 +40,11 @@ def train():
     CKPT_DIR.mkdir(parents=True, exist_ok=True)
 
     best_psnr = 0.0
+
+    # Setup model's checkpoints directory
+    ckpt_model_path = CKPT_DIR / MODEL_NAME
+    ckpt_model_path.mkdir(parents=True, exist_ok=True)
+
     for epoch in range(1, EPOCHS+1):
         model.train()
         pbar = tqdm(dl_train, desc=f'Epoch {epoch}/{EPOCHS}')
@@ -69,18 +74,18 @@ def train():
             mean_ssim = float(np.mean(ssims))
             print(f'Val PSNR: {mean_psnr:.2f} dB | SSIM: {mean_ssim:.4f}')
 
-            # Set up checkpoint path
-            ckpt_model_path = CKPT_DIR / MODEL_NAME
-            ckpt_model_path.mkdir(parents=True, exist_ok=True)
-            ckpt_path = ckpt_model_path / f'{MODEL_NAME}_x{SCALE}_e{epoch:03d}_psnr{mean_psnr:.2f}.pth'
-
-            # Save checkpoint only 10 models and when best model appears
+            # Save checkpoint for only 10 models (regardless of epochs) or when best model appears
             offset = max(1, EPOCHS // 10)
-            if epoch%offset == 0: 
-                torch.save(model.state_dict(), ckpt_path)
             if mean_psnr > best_psnr:
                 best_psnr = mean_psnr
-                torch.save(model.state_dict(), CKPT_DIR / f'best_{MODEL_NAME}_x{SCALE}.pth')
+                print(f'Better model found at epoch {epoch}, saving as best_{MODEL_NAME}_x{SCALE}.pth')
+                torch.save(model.state_dict(), ckpt_model_path / f'best_{MODEL_NAME}_x{SCALE}.pth')
+            elif epoch%offset == 0: 
+                ckpt_path = ckpt_model_path / f'{MODEL_NAME}_x{SCALE}_e{epoch:03d}_psnr{mean_psnr:.2f}.pth'
+                torch.save(model.state_dict(), ckpt_path)
+            elif epoch == EPOCHS:
+                ckpt_path = ckpt_model_path / f'last_{MODEL_NAME}_x{SCALE}.pth'
+                torch.save(model.state_dict(), ckpt_path)
 
 if __name__ == "__main__":
     start_time = time.time()
