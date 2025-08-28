@@ -16,18 +16,18 @@ LON_MIN, LON_MAX = -8.613281,-1.878662   # Andalusia, Spain: -7.344360, -1.79626
 
 # Training / preprocessing
 RANDOM_SEED = 42
-TILE_SIZE_HR = 64  # crop size on HR; LR crop will be TILE_SIZE_HR // SCALE
+TILE_SIZE_HR = 96  # crop size on HR; LR crop will be TILE_SIZE_HR // SCALE
 SCALE = 4           # 2 or 4 recommended for training
-BATCH_SIZE = 32
-NUM_WORKERS = 4
+BATCH_SIZE = 8
+N_WORKERS = 4
 LR_INIT = 2e-4
 EPOCHS = 250
 VAL_INTERVAL = 1
 
 # Model
 MODEL_NAME = 'edsr'  # 'edsr' | 'esrgan' | 'srcnn'
-NUM_RESBLOCKS = 16   # for EDSR
-N_FEATS = 64         # for EDSR
+N_RESBLOCKS = 4   # for EDSR
+N_FEATS = 32         # for EDSR
 
 # Inference
 SAVE_COMPARE_GRID = True
