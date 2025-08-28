@@ -1,4 +1,68 @@
-# Super-resolution for Sentinel RGB (experimental)
+# Super-resolution for Sentinel RGB (SuperRes4Sentinel)
+The SuperRes4Sentinel module has been developed as part of the image enhancing pipeline for KHAOS research group's Agricultural Imaging Assistant (AgrIA) project.
+
+## Features:
+- Enhancing of true color RGB pictures from Sentinel.
+
+## Requirements
+- 
+
+## Installation
+
+## Quickstart
+
+## Project structure
+The following display explains the project's file tree:
+```
+(2025-08-28)
+
+SuperRes4Sentinel
+├── data                        # Stores the training images. They must be true color images (png, jpg, tiff...).
+│   ├── HR                      # Saves high resolution images from Google Maps' ground truth.
+│   │   ├── ...png
+│   │   └── ...
+│   └── LR                      # Saves low resolution images from Sentinel.
+│       ├── ...png
+│       └── ...
+│
+│
+├── notebooks                   #  (IN PROGRESS) Stores different notebooks to test different parts of the project.
+│   ├── 00_introduction.ipynb
+│   └── 01_quickstart.ipynb
+│
+│
+├── out                         # Stores model output.
+│   ├── checkpoints             # Contains files with the best models as well as the model in different stages of training by epochs.
+│   │   ├── ...pth
+│   │   └── ...
+│   └── res                     # Contains the SR images results after inference.
+│       ├── ...png
+│       └── ...
+│
+│
+├── src                         # Stores all organised source code and the bulk of the programming.
+│   ├── data                    # Contains scripts that set up the model's training dataset
+│   │   └── dataset.py          # Holds all methods for instances of `PairedDataset` objects to be generated and setup for later usage.
+│   │
+│   ├── model                   # Contains all code related to SR model building.
+│   │   └── model.py            # Keeps default config setup and factory method for SR models.
+│   │
+│   ├── pipelines               # (NAME UNCLEAR) Contains model training pipeline related scripts and setup.
+│   │   ├── get_image_pairs.py  # Keeps methods to download and pair images from Sentinel and Google.
+│   │   ├── sh_config.py        # Initializes the Sentinel Hub configuration for image retrieval using Copernicus credentials.
+│   │   └── utils.py            # Helper methods for downloading process.
+│   │
+│   ├── utils                   # Stores an assorment of helper functions and project constants.
+│   │   ├── constants.py        # Contains all project's most relevant constants that are used all trhoughout.
+│   │   └── utils.py            # Helper methods for model's training and image inference.
+│   ├── infer.py                # Image's inference workflow.
+│   └── train.py                # Model's training workflow.
+│
+├── LICENSE
+├── README.md
+└── requirements.txt
+
+```
 
 - Train EDSR ×4 on paired Sentinel-2 (LR) and Google Maps (HR) crops.
 - Evaluate PSNR/SSIM and visualize LR vs Bicubic vs SR.

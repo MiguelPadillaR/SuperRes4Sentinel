@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timedelta
 
 from sentinelhub import SHConfig, DataCollection, MimeType, SentinelHubRequest
-from .config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
+from .sh_config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
 from .utils import *
 from src.utils.constants import *
 
