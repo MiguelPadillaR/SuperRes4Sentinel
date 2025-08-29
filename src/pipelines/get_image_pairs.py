@@ -20,7 +20,7 @@ if not config.sh_client_id or not config.sh_client_secret:
 # ----------------------------
 # SENTINEL REQUEST
 # ----------------------------
-def download_sentinel_image(lat, lon, size, zoom, filename):
+def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color):
     """
     Fetches a Sentinel image for the given lat, lon, size, and zoom level,
     and saves it to the specified filename.
@@ -37,24 +37,6 @@ def download_sentinel_image(lat, lon, size, zoom, filename):
 
     print(f"Image shape at {resolution} m resolution: {size} pixels")
 
-    evalscript_true_color = """
-        //VERSION=3
-
-        function setup() {
-            return {
-                input: [{
-                    bands: ["B02", "B03", "B04"]
-                }],
-                output: {
-                    bands: 3
-                }
-            };
-        }
-
-        function evaluatePixel(sample) {
-            return [sample.B04, sample.B03, sample.B02];
-        }
-    """
     # Get a range of dates to ensure cloud-free scenes
     now = datetime.now()
     delta = DELTA_DAYS
@@ -134,7 +116,7 @@ def download_google_image(lat, lon, size, zoom, filename):
 
     return is_image_downloaded
 
-def download_image_pairs(lat, lon, size, zoom):
+def download_image_pairs(lat, lon, size, zoom, bands=None):
     """
     Downloads a pair of images (Google Maps and Sentinel) for the given latitude and longitude.
     
@@ -150,7 +132,9 @@ def download_image_pairs(lat, lon, size, zoom):
     print(f"Fetching images for coordinates: {lat}, {lon}")
     is_google_image_downloaded = download_google_image(lat, lon, size, zoom, filename)
     if is_google_image_downloaded:
-        download_sentinel_image(lat, lon, size, zoom, filename)
+        # Get script that will retrieve image bands
+        evalscript_true_color = generate_evalscript(bands)
+        download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
         print()
     else:
         lat, lon = get_n_random_coordinate_pairs(1)[0]
@@ -161,13 +145,34 @@ def main():
     """
     Downloads n pairs of HR-LR Google-Sentinel images.
     """
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    LR_DIR.mkdir(parents=True, exist_ok=True)
+    HR_DIR.mkdir(parents=True, exist_ok=True)
+
     parser = argparse.ArgumentParser(description="Download image pairs from Google Maps and Sentinel.")
-    parser.add_argument("-n", "--number", type=int, default=30, help="Number of image pairs to download (default: 30)")
+    parser.add_argument(
+        "-n", "--number",
+        type=int,
+        default=30,
+        metavar="amount",
+        help="Number of image pairs to download (default: 30)."
+    )
+    parser.add_argument(
+        "-bz", "--bounded-zone",
+        type=float,
+        nargs=4,
+        metavar=("lat_max", "lat_min", "lon_max", "lon_min"),
+        default=[LAT_MAX, LAT_MIN, LON_MAX, LON_MIN],
+        help="Coordinates of the bounded zone box to take the coordinates from (default: entire Spain)."
+    )
+
     args = parser.parse_args()
     n = args.number
+    bounded_zone = args.bounded_zone
+
     zoom = 17
     size = (255,255)
-    coordinates = get_n_random_coordinate_pairs(n)
+    coordinates = get_n_random_coordinate_pairs(n, bounded_zone)
 
     for pair in coordinates:
         lat, lon = pair
