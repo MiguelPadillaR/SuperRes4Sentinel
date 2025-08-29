@@ -12,7 +12,7 @@ RES_DIR = OUT_DIR / 'res'
 # Image pool constants
 DELTA_DAYS = 10
 LAT_MIN, LAT_MAX = 37.230328, 43.109004  # Andalusia, Spain: 36.125397, 38.682026
-LON_MIN, LON_MAX = -8.613281,-1.878662   # Andalusia, Spain: -7.344360, -1.796265
+LON_MIN, LON_MAX = -8.613281, -1.878662  # Andalusia, Spain: -7.344360, -1.796265
 
 # Training / preprocessing
 RANDOM_SEED = 42

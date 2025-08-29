@@ -1,0 +1,10 @@
+python==3.12
+numpy<2
+pillow
+python-opencv
+rasterio
+requests
+scikit-image
+sentinelhub
+torch
+torchvision

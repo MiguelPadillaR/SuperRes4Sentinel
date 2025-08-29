@@ -4,15 +4,38 @@ The SuperRes4Sentinel module has been developed as part of the image enhancing p
 ## Features:
 - Enhancing of true color RGB pictures from Sentinel.
 
-## Requirements
-- 
-
 ## Installation
+### Requirements
+- **A CONDA environment is heavily encouraged**, as it usually is more solid and problems are easier to pinpoint, but **Python's standard virtual environments will also do** with minor adjustments.
+- All `.env` related data, including:
+    - **A Copernicus DataSpace Ecosystem account and its credentials for remote usage**. It's free to create and tutorials for token generation are available.
+    - **A Google Maps Static API key**. Really, any Google project with an API key will do, the usage of GMS is well within the free tier for minor scales experimentation.
+
+### Setup
+
 
 ## Quickstart
+```
+cd SuperRes4Sentinel/
+```
+### Image retrieval
+```bash
+python -m src.pipelines.get_image_pairs -h
+python -m src.pipelines.get_image_pairs
+```
+### Training
+```bash
+python -m src.train -h
+python -m src.train
 
+```
+
+### Inference
+```bash
+python -m src.infer
+```
 ## Project structure
-The following display explains the project's file tree:
+After a complete execution of all project's features (image retrieval, training and inference) this will be the project's file tree:
 ```
 (2025-08-28)
 
@@ -63,24 +86,3 @@ SuperRes4Sentinel
 └── requirements.txt
 
 ```
-
-- Train EDSR ×4 on paired Sentinel-2 (LR) and Google Maps (HR) crops.
-- Evaluate PSNR/SSIM and visualize LR vs Bicubic vs SR.
-- Optionally use ESRGAN/RRDBNet weights for sharper textures.
-
-### Quick start
-1. Put paired images in `data/LR` and `data/HR` with **matching filenames**.
-2. `pip install -r requirements.txt`
-3. Edit `src/constants.py` (SCALE, TILE_SIZE_HR, etc.)
-4. `python -m src.train`
-5. `python -m src.infer data/LR/your_image.png --model edsr --scale 4 --ckpt outputs/checkpoints/best_edsr_x4.pth --progressive_to 8`
-
-> To approach 10 m→1 m (×10), train at ×4 and upscale progressively (×4→×8→resize to ×10) while you experiment. True ×10 fidelity usually benefits from multi-stage or diffusion-based models and well-registered training data.
-
----
-
-## Notes on weights & articles to try next
-
-- **EDSR** (baseline, stable for ×2/×4). Train from scratch on your tiles; convergence is predictable with L1 loss.
-- **ESRGAN / RRDBNet** (perceptual, sharper). Start from public ×4 RRDBNet weights, then finetune on your domain to reduce artifacts over fields/rooftops.
-- **Progressive SR** to push beyond ×4: apply model multiple times (×2→×4→×8) and finish with high-quality resize to reach ×10.

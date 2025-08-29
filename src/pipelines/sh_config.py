@@ -27,5 +27,3 @@ config.sh_base_url = 'https://sh.dataspace.copernicus.eu'
 config.sh_token_url = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
 
 config.save(CONFIG_NAME)
-
-print(SHConfig())
