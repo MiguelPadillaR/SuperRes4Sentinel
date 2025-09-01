@@ -74,7 +74,7 @@ class PairedImageDataset(Dataset):
         size_hr = TILE_SIZE_HR
         
         hr_crop = self._get_rand_crop(hr, size_hr)
-        lr_crop = self._get_rand_crop(hr, size_hr)
+        lr_crop = self._get_rand_crop(hr, size_hr//self.scale)
 
         # lr_crop = cv2.resize(hr_crop, (size_hr//self.scale, size_hr//self.scale), interpolation=cv2.INTER_AREA)
         # Replace lr_crop with real LR if available and aligned

@@ -45,7 +45,7 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
     best_psnr = 0.0
 
     # Setup model's checkpoints directory
-    ckpt_model_path = ckpt_dir / model_name
+    ckpt_model_path = ckpt_dir / "_".join(model_name, 'x'+str(scale))
     ckpt_model_path.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(1, epochs+1):
@@ -92,7 +92,7 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Train super-resolution model on paired image dataset.")
+    parser = argparse.ArgumentParser(description="Train super-resolution model on LoRes-HiRes paired image dataset. Image files must have the same name on both directories.")
 
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=EPOCHS, help="Number of training epochs")
