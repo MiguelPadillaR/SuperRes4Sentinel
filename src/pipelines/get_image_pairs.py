@@ -2,8 +2,13 @@ import io
 from PIL import Image, ImageEnhance
 import requests
 import numpy as np
+import argparse
+
+import time
+from datetime import datetime, timedelta
+
 from sentinelhub import SHConfig, DataCollection, MimeType, SentinelHubRequest
-from .config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
+from .sh_config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
 from .utils import *
 from src.utils.constants import *
 
@@ -15,7 +20,7 @@ if not config.sh_client_id or not config.sh_client_secret:
 # ----------------------------
 # SENTINEL REQUEST
 # ----------------------------
-def download_sentinel_image(lat, lon, size, zoom, filename):
+def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color):
     """
     Fetches a Sentinel image for the given lat, lon, size, and zoom level,
     and saves it to the specified filename.
@@ -32,24 +37,12 @@ def download_sentinel_image(lat, lon, size, zoom, filename):
 
     print(f"Image shape at {resolution} m resolution: {size} pixels")
 
-    evalscript_true_color = """
-        //VERSION=3
-
-        function setup() {
-            return {
-                input: [{
-                    bands: ["B02", "B03", "B04"]
-                }],
-                output: {
-                    bands: 3
-                }
-            };
-        }
-
-        function evaluatePixel(sample) {
-            return [sample.B04, sample.B03, sample.B02];
-        }
-    """
+    # Get a range of dates to ensure cloud-free scenes
+    now = datetime.now()
+    delta = DELTA_DAYS
+    look_from = now - timedelta(days=delta)
+    initial_date = f"{look_from.year}-{look_from.month:02d}-{look_from.day:02d}"
+    final_date = f"{now.year}-{now.month:02d}-{now.day:02d}"
 
     request_true_color = SentinelHubRequest(
         evalscript=evalscript_true_color,
@@ -57,7 +50,7 @@ def download_sentinel_image(lat, lon, size, zoom, filename):
             SentinelHubRequest.input_data(
                 DataCollection.SENTINEL2_L2A.define_from("s2l2a", service_url=config.sh_base_url),
                 # Pick a recent interval (e.g., last week) to ensure cloud-free scenes
-                time_interval=("2025-08-15", "2025-08-25"),
+                time_interval=(initial_date, final_date),
             )
         ],
         responses=[SentinelHubRequest.output_response("default", MimeType.PNG)],
@@ -108,8 +101,8 @@ def download_google_image(lat, lon, size, zoom, filename):
         return False
 
     # Check if the image is mainly white (no imagery available)
-    google = Image.open(io.BytesIO(resp.content)).convert("L")
-    arr = np.array(google)
+    google_converted = Image.open(io.BytesIO(resp.content)).convert("L")
+    arr = np.array(google_converted)
     std_val = np.std(arr)
 
     # If almost all pixels are very bright (white background) and there's little variation, it's probably "no imagery"
@@ -123,7 +116,7 @@ def download_google_image(lat, lon, size, zoom, filename):
 
     return is_image_downloaded
 
-def download_image_pairs(lat, lon, size, zoom):
+def download_image_pairs(lat, lon, size, zoom, bands=None):
     """
     Downloads a pair of images (Google Maps and Sentinel) for the given latitude and longitude.
     
@@ -136,20 +129,57 @@ def download_image_pairs(lat, lon, size, zoom):
     """
     is_google_image_downloaded = True
     filename = f"{str(lat)[:8]}_{str(lon)[:8]}_test.png"
-    print(f"\nFetching images for coordinates: {lat}, {lon}")
+    print(f"Fetching images for coordinates: {lat}, {lon}")
     is_google_image_downloaded = download_google_image(lat, lon, size, zoom, filename)
     if is_google_image_downloaded:
-        download_sentinel_image(lat, lon, size, zoom, filename)
+        # Get script that will retrieve image bands
+        evalscript_true_color = generate_evalscript(bands)
+        download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
+        print()
     else:
         lat, lon = get_n_random_coordinate_pairs(1)[0]
-        print(f" Trying with new coordinates:\n{lat},{lon}")
+        print(f"Trying with new coordinates:\n{lat},{lon}")
         download_image_pairs(lat, lon, size, zoom)
 
-if __name__ == "__main__":
-    zoom = 17
-    size = (255,255)
-    coordinates = get_n_random_coordinate_pairs(40)
+def main():
+    """
+    Downloads n pairs of HR-LR Google-Sentinel images.
+    """
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    LR_DIR.mkdir(parents=True, exist_ok=True)
+    HR_DIR.mkdir(parents=True, exist_ok=True)
+
+    parser = argparse.ArgumentParser(description="Download image pairs from Google Maps and Sentinel.")
+    parser.add_argument(
+        "-n", "--number",
+        type=int,
+        default=30,
+        metavar="amount",
+        help="Number of image pairs to download (default: 30)."
+    )
+    parser.add_argument(
+        "-bz", "--bounded-zone",
+        type=float,
+        nargs=4,
+        metavar=("lat_max", "lat_min", "lon_max", "lon_min"),
+        default=[LAT_MAX, LAT_MIN, LON_MAX, LON_MIN],
+        help="Coordinates of the bounded zone box to take the coordinates from (default: entire Spain)."
+    )
+
+    args = parser.parse_args()
+    n = args.number
+    bounded_zone = args.bounded_zone
+
+    zoom = ZOOM
+    size = (int(SIZE),int(SIZE))
+    coordinates = get_n_random_coordinate_pairs(n, bounded_zone)
 
     for pair in coordinates:
         lat, lon = pair
         download_image_pairs(lat, lon, size, zoom)
+
+if __name__ == "__main__":
+    start_time = time.time()
+    main()
+    finish_time = time.time()
+    print(f"Total time:\t{(finish_time - start_time)/60:.1f} minutes")

@@ -4,6 +4,8 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
+from src.utils.constants import MODEL_NAME, N_FEATS, N_RESBLOCKS, SCALE
+
 # Minimal EDSR implementation (simplified)
 class MeanShift(nn.Conv2d):
     def __init__(self, rgb_mean=(0.4488, 0.4371, 0.4040), rgb_std=(1.0,1.0,1.0), sign=-1):
@@ -78,10 +80,10 @@ except Exception:
 
 @dataclass
 class ModelConfig:
-    name: str = 'edsr'  # 'edsr' | 'esrgan' | 'srcnn'
-    scale: int = 4
-    n_resblocks: int = 16
-    n_feats: int = 64
+    name: str = MODEL_NAME  # 'edsr' | 'esrgan' | 'srcnn'
+    scale: int = SCALE
+    n_resblocks: int = N_RESBLOCKS
+    n_feats: int = N_FEATS
     pretrained: Optional[str] = None  # path to .pth
 
 
@@ -106,5 +108,5 @@ def build_model(cfg: ModelConfig) -> nn.Module:
         elif 'state_dict' in state:
             state = {k.replace('module.', ''): v for k,v in state['state_dict'].items()}
         model.load_state_dict(state, strict=False)
-        print(f'Loaded pretrained weights from {cfg.pretrained}')
+        print(f'Successfully loaded pretrained weights from {cfg.pretrained}')
     return model

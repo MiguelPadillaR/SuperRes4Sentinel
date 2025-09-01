@@ -1,5 +1,8 @@
 import math
+import numpy as np
 import random
+import rasterio
+from rasterio.transform import from_bounds
 from sentinelhub import BBox, CRS
 from src.utils.constants import LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
 
@@ -84,7 +87,7 @@ def get_zoom_from_bbox(bbox: BBox, size: tuple):
     
     return zoom, # google_bbox
 
-def get_n_random_coordinate_pairs(amount:int):
+def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, LON_MIN, LON_MAX]):
     """
     Generate random coordinates from a bounded zone.
     
@@ -93,9 +96,81 @@ def get_n_random_coordinate_pairs(amount:int):
     Returns: list of (lat, lon) tuples
     """    
     coordinates = []
+    lat_min, lat_max, lon_min, lon_max = bounded_zone
     for _ in range(amount):
-        lat = random.uniform(LAT_MIN, LAT_MAX)
-        lon = random.uniform(LON_MIN, LON_MAX)
+        lat = random.uniform(lat_min, lat_max)
+        lon = random.uniform(lon_min, lon_max)
         coordinates.append((lat, lon))
     
     return coordinates
+
+def generate_evalscript(bands=None):
+    """
+    Generate an evalscript for SentinelHub requests.
+    Arguments:
+        bands (list | None): Bands to include, e.g. "B02" or ["B02", "B03", "B04"]. If None, defaults to True Color (B04, B03, B02).
+        get_separate_bands (bool): Downloads bands in separte files. Default is False.
+    Returns:
+        evalscript (str): The generated evalscript for Sentinel's image request.
+    """
+    if bands is None:
+        # Default to True Color: R=B04, G=B03, B=B02
+        input_bands = ["B02", "B03", "B04"]
+        output_bands = ["B04", "B03", "B02"]
+    else:
+        input_bands = bands
+        output_bands = bands
+
+    bands_str = ", ".join([f'"{band}"' for band in input_bands])
+    evalscript = f"""
+    //VERSION=3
+
+    function setup() {{
+        return {{
+            input: [{{
+                bands: [{bands_str}]
+            }}],
+            output: {{
+                bands: {len(output_bands)}
+            }}
+        }};
+    }}
+
+    function evaluatePixel(sample) {{
+        return [{', '.join([f'sample.{band}' for band in output_bands])},];
+    }}
+    """
+    return evalscript
+
+def save_tiff(image: np.ndarray, filename: str, bbox, crs="EPSG:4326"):
+    """
+    Save a numpy array as a GeoTIFF with georeferencing info.
+    
+    Args:
+        image (np.ndarray): Image array (H, W) or (H, W, C).
+        filename (str): Output file path (.tiff).
+        bbox (sentinelhub.BBox): Bounding box used in the request.
+        crs (str): Coordinate reference system (default WGS84).
+    """
+    height, width = image.shape[:2]
+    count = 1 if image.ndim == 2 else image.shape[2]
+
+    # Create an affine transform (maps pixel <-> geo coordinates)
+    transform = from_bounds(*bbox, width=width, height=height)
+
+    with rasterio.open(
+        filename,
+        "w",
+        driver="GTiff",
+        height=height,
+        width=width,
+        count=count,
+        dtype=image.dtype,
+        crs=crs,
+        transform=transform,
+    ) as dst:
+        if count == 1:
+            dst.write(image, 1)
+        else:
+            for i in range(count):
+                dst.write(image[:, :, i], i + 1)

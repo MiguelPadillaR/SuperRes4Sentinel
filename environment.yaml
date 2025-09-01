@@ -1,0 +1,32 @@
+name: lol
+channels:
+  - defaults
+dependencies:
+  - bzip2=1.0.8
+  - ca-certificates=2025.7.15
+  - expat=2.7.1
+  - libcxx=19.1.7
+  - libffi=3.4.4
+  - ncurses=6.5
+  - openssl=3.0.17
+  - pip=25.1
+  - python=3.12.11
+  - readline=8.3
+  - setuptools=78.1.1
+  - sqlite=3.50.2
+  - tk=8.6.15
+  - tzdata=2025b
+  - wheel=0.45.1
+  - xz=5.6.4
+  - zlib=1.2.13
+  - pip:
+      - numpy<2  # Due to compatibility issues with torch
+      - opencv-python<4.12  # Due to compatibility issues with numpy<2
+      - pillow
+      - python-opencv
+      - rasterio
+      - requests
+      - scikit-image
+      - sentinelhub
+      - torch
+      - torchvision

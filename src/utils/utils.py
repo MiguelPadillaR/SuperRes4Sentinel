@@ -19,10 +19,6 @@ def imwrite(path: Path, img: np.ndarray) -> None:
     cv2.imwrite(str(path), cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
 
-def to_uint8(img: np.ndarray) -> np.ndarray:
-    return np.clip(img, 0, 255).astype(np.uint8)
-
-
 def get_psnr(img1: np.ndarray, img2: np.ndarray) -> float:
     return float(peak_signal_noise_ratio(img2, img1, data_range=255))
 
@@ -47,45 +43,3 @@ def make_grid(images, ncols=3, pad=4) -> np.ndarray:
         x = pad + c*(w+pad)
         grid[y:y+h, x:x+w] = im
     return grid
-
-
-def center_crop_mod(img: np.ndarray, scale: int) -> np.ndarray:
-    h, w = img.shape[:2]
-    h2 = h - (h % scale)
-    w2 = w - (w % scale)
-    y0 = (h - h2)//2
-    x0 = (w - w2)//2
-    return img[y0:y0+h2, x0:x0+w2]
-
-
-def resize(img: np.ndarray, scale: float) -> np.ndarray:
-    h, w = img.shape[:2]
-    return cv2.resize(img, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_CUBIC)
-
-def register_images(img_lr, img_hr):
-    # Convert to grayscale
-    gray_lr = cv2.cvtColor(img_lr, cv2.COLOR_BGR2GRAY)
-    gray_hr = cv2.cvtColor(img_hr, cv2.COLOR_BGR2GRAY)
-
-    # Detect ORB features and compute descriptors.
-    orb = cv2.ORB_create(5000)
-    kp1, des1 = orb.detectAndCompute(gray_lr, None)
-    kp2, des2 = orb.detectAndCompute(gray_hr, None)
-
-    # Match features.
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    matches = bf.match(des1, des2)
-    matches = sorted(matches, key=lambda x: x.distance)
-
-    # Extract matched keypoints.
-    pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-    pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-
-    # Compute homography.
-    H, mask = cv2.findHomography(pts2, pts1, cv2.RANSAC, 5.0)
-
-    # Warp HR image to align with LR.
-    h, w = img_lr.shape[:2]
-    registered = cv2.warpPerspective(img_hr, H, (w, h))
-
-    return registered

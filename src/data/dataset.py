@@ -19,9 +19,10 @@ def list_image_paths(root: Path) -> List[Path]:
 
 
 class PairedImageDataset(Dataset):
-    """Assumes *matching filenames* between LR and HR folders.
-       Example: data/LR/sceneA.png  <-> data/HR/sceneA.png
-       Performs random HR crops (size TILE_SIZE_HR), with aligned LR crops.
+    """
+    Performs random HR crops (size TILE_SIZE_HR), with aligned LR crops.\n
+    Assumes *matching filenames* between LR and HR folders.
+    Example: data/LR/sceneA.png  <-> data/HR/sceneA.png
     """
     def __init__(self, lr_dir: Path, hr_dir: Path, scale: int = SCALE, augment: bool = True):
         self.lr_dir = Path(lr_dir)
@@ -59,18 +60,23 @@ class PairedImageDataset(Dataset):
         if k:
             lr = np.rot90(lr, k); hr = np.rot90(hr, k)
         return lr.copy(), hr.copy()
+    
+    def _get_rand_crop(self, im: np.ndarray, size_hr: int) -> np.ndarray:
+        H, W = im.shape[:2]
+        y, x = self._rand_crop_coords(H, W, size_hr)
+        return im[y:y+size_hr, x:x+size_hr]
 
     def __getitem__(self, idx):
         lp, hp = self.pairs[idx]
         lr = imread(lp)
         hr = imread(hp)
-
         # ensure shapes are multiples of scale
-        H, W = hr.shape[:2]
         size_hr = TILE_SIZE_HR
-        y, x = self._rand_crop_coords(H, W, size_hr)
-        hr_crop = hr[y:y+size_hr, x:x+size_hr]
-        lr_crop = cv2.resize(hr_crop, (size_hr//self.scale, size_hr//self.scale), interpolation=cv2.INTER_AREA)
+        
+        hr_crop = self._get_rand_crop(hr, size_hr)
+        lr_crop = self._get_rand_crop(hr, size_hr//self.scale)
+
+        # lr_crop = cv2.resize(hr_crop, (size_hr//self.scale, size_hr//self.scale), interpolation=cv2.INTER_AREA)
         # Replace lr_crop with real LR if available and aligned
         # Here we assume perfect registration and simply crop+downsample from HR for stability
         # To use provided LR tiles directly, comment the above and instead crop from lr with scaled coords.
@@ -82,3 +88,4 @@ class PairedImageDataset(Dataset):
         lr_t = torch.from_numpy(lr_crop.transpose(2,0,1)).float() / 255.0
         hr_t = torch.from_numpy(hr_crop.transpose(2,0,1)).float() / 255.0
         return {"lr": lr_t, "hr": hr_t}
+
