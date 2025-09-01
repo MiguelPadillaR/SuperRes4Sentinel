@@ -1,5 +1,6 @@
 python==3.12
-numpy<2
+numpy<2  # Due to compatibility issues with torch
+opencv-python<4.12  # Due to compatibility issues with numpy<2
 pillow
 python-opencv
 rasterio

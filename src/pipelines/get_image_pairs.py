@@ -170,8 +170,8 @@ def main():
     n = args.number
     bounded_zone = args.bounded_zone
 
-    zoom = 17
-    size = (255,255)
+    zoom = ZOOM
+    size = (int(SIZE),int(SIZE))
     coordinates = get_n_random_coordinate_pairs(n, bounded_zone)
 
     for pair in coordinates:

@@ -49,10 +49,10 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_colo
     )
     # Retieve imagen band and save it
     image = sh_request.get_data()[0]
-    filepath = LR_DIR / filename
+    filepath = BAND_DIR / filename
     save_tiff(image, filepath, bbox, crs="EPSG:4326")  # ✅ use new helper
 
-    print(f"Sentinel LR image saved to {filepath}")
+    print(f"Sentinel band image saved to {filepath}")
 
 def download_image_bands(lat, lon, size, zoom, bands=None):
     """
@@ -65,7 +65,7 @@ def download_image_bands(lat, lon, size, zoom, bands=None):
         filename (str): Filename to save the image.
     """
     for band in bands:
-        filename = f"{str(lat)[:8]}_{str(lon)[:8]}_{band}.tiff"
+        filename = f"{str(lat)[:8]}_{str(lon)[:8]}-{band}.tiff"
         print(f"Fetching images for coordinates: {lat}, {lon}")
         # Get script that will retrieve  image bands
         evalscript_true_color = generate_evalscript([band])
@@ -77,7 +77,7 @@ def main():
     Downloads n pairs of HR-LR Google-Sentinel images.
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    LR_DIR.mkdir(parents=True, exist_ok=True)
+    BAND_DIR.mkdir(parents=True, exist_ok=True)
     HR_DIR.mkdir(parents=True, exist_ok=True)
 
     parser = argparse.ArgumentParser(description="Download image pairs from Google Maps and Sentinel.")
