@@ -45,7 +45,7 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
     best_psnr = 0.0
 
     # Setup model's checkpoints directory
-    ckpt_model_path = ckpt_dir / "_".join(model_name, 'x'+str(scale))
+    ckpt_model_path = ckpt_dir / "_".join([model_name, 'x'+str(scale)])
     ckpt_model_path.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(1, epochs+1):
@@ -82,7 +82,7 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
             if mean_psnr > best_psnr:
                 best_psnr = mean_psnr
                 print(f'Better model found at epoch {epoch}, saving as best_{model_name}_x{scale}.pth')
-                torch.save(model.state_dict(), ckpt_model_path / f'best_{model_name}_x{scale}.pth')
+                torch.save(model.state_dict(), ckpt_dir / f'best_{model_name}_x{scale}.pth')
             elif epoch%offset == 0: 
                 ckpt_path = ckpt_model_path / f'{model_name}_x{scale}_e{epoch:03d}_psnr{mean_psnr:.2f}.pth'
                 torch.save(model.state_dict(), ckpt_path)
