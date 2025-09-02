@@ -149,14 +149,36 @@ def main():
     LR_DIR.mkdir(parents=True, exist_ok=True)
     HR_DIR.mkdir(parents=True, exist_ok=True)
 
-    parser = argparse.ArgumentParser(description="Download image pairs from Google Maps and Sentinel.")
+    parser = argparse.ArgumentParser(
+        description="Download image pairs from Google Maps and Sentinel.",
+        epilog="""Examples:
+        python get_image_pairs.py -n 50
+            Download 50 random image pairs (default Spain bounding box).
+
+        python get_image_pairs.py -n 10 -s 512 512
+            Download 10 pairs, each 512x512 pixels.
+
+        python get_image_pairs.py -n 20 -bz 43.5 36.0 -9.5 -1.5
+            Download 20 pairs restricted to northern Spain.
+    """,
+        formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument(
         "-n", "--number",
         type=int,
-        default=30,
+        default=500,
         metavar="amount",
         help="Number of image pairs to download (default: 30)."
     )
+    parser.add_argument(
+        "-s", "--size",
+        type=int,
+        nargs=2,
+        metavar=("size_x", "size_y"),
+        default=[SIZE, SIZE],
+        help="Image X and Y size."
+    )
+
     parser.add_argument(
         "-bz", "--bounded-zone",
         type=float,
