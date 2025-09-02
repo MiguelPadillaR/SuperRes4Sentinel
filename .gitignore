@@ -1,7 +1,8 @@
-.venv
+*.venv
+*.env
 *__pycache__*/
 *.pyc
-.DS_Store
-processed/*
-out/checkpoints/*
-out/res/*
+*.DS_Store
+
+out/*
+data/*
