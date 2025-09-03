@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from sentinelhub import SHConfig, DataCollection, MimeType, SentinelHubRequest
 from .sh_config import CONFIG_NAME, GOOGLE_MAPS_STATIC_API_KEY
 from .utils import *
+
 from src.utils.constants import *
 
 config = SHConfig(CONFIG_NAME)
@@ -193,7 +194,7 @@ def main():
     bounded_zone = args.bounded_zone
 
     zoom = ZOOM
-    size = (int(SIZE),int(SIZE))
+    size = (SIZE,SIZE)
     coordinates = get_n_random_coordinate_pairs(n, bounded_zone)
 
     for pair in coordinates:

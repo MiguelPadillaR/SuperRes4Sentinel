@@ -1,8 +1,3 @@
-import io
-import os
-from PIL import Image, ImageEnhance
-import requests
-import numpy as np
 import argparse
 
 import time
@@ -86,7 +81,7 @@ def main():
     n = args.number
     bands=['B02', 'B03', 'B04', 'B08']
     zoom = 17
-    size = (255,255)
+    size = (SIZE,SIZE)
     coordinates = get_n_random_coordinate_pairs(n)
 
     for pair in coordinates:
