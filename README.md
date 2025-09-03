@@ -15,32 +15,37 @@ The SuperRes4Sentinel module has been developed as part of the image enhancing p
 
 
 ## Quickstart
+Most of the modules run as scripts. Each one has a brief general description and parameters overview using the `-h` or `--help` option. All of them run on default parameters when no options values are specified. Most of these values can be found and modified in the `constants.py` file, but we recommend you tweak it in the options directly.
+
+All of these scripts are run from root:
 ```
 cd SuperRes4Sentinel/
 ```
 ### Image retrieval
+In order to build a model, you will need images to train it with. Use the following to get 500 image pairs to train with:
 ```bash
-python -m src.pipelines.get_image_pairs -h
 python -m src.pipelines.get_image_pairs
 ```
 ### Training
+Use the following to build an EDSR model with a x4 scaling factor. Best model will be selected from among 500 epochs:
 ```bash
-python -m src.train -h
 python -m src.train
-
 ```
-
 ### Inference
+Whenever you are ready to try your model, you will need to indicate the positional argument for `images`, wither with one or several filepaths of the images to super-resolve or a dir contaitning such images:
 ```bash
-python -m src.infer
+python -m src.infer path/to/your/LR/images
 ```
 ## Project structure
-After a complete execution of all project's features (image retrieval, training and inference) this will be the project's file tree:
+After a complete execution of all project's features (image retrieval, training and inference) this will be the project's resulting file tree:
 ```
 (2025-08-28)
 
 SuperRes4Sentinel
 ├── data                        # Stores the training images. They must be true color images (png, jpg, tiff...).
+│   ├── bands                   # Saves Sentinel's band images.
+│   │   ├── ...png,jpg,tiff...
+│   │   └── ...
 │   ├── HR                      # Saves high resolution images from Google Maps' ground truth.
 │   │   ├── ...png
 │   │   └── ...
@@ -55,13 +60,20 @@ SuperRes4Sentinel
 │
 │
 ├── out                         # Stores model output.
-│   ├── checkpoints             # Contains files with the best models as well as the model in different stages of training by epochs.
+│   ├── checkpoints             # Contains files with the best model weights as well as in different stages of training by epochs.
 │   │   ├── ...pth
 │   │   └── ...
 │   └── res                     # Contains the SR images results after inference.
-│       ├── ...png
-│       └── ...
-│
+│       ├── comparison          # Saves a comparison of both LR-x{scale} and LR-x{scale}-x{prog_scale} of each image's upscaling.
+│       │   ├── ...png
+│       │   └── ...
+│       ├── x{scale1}           # Saves high resolution images' upscaling results at {scale1}.
+│       │   ├── ...png
+│       │   └── ...
+│       ├── x{scale2}           # Saves high resolution images' upscaling results at {scale2}.
+│       │   ├── ...png
+│       │   └── ...
+│       └── ...
 │
 ├── src                         # Stores all organised source code and the bulk of the programming.
 │   ├── data                    # Contains scripts that set up the model's training dataset
