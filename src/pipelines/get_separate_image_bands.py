@@ -38,7 +38,7 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_colo
         evalscript=evalscript_true_color,
         input_data=[
             SentinelHubRequest.input_data(
-                DataCollection.SENTINEL2_L2A.define_from("s2l2a", service_url=config.sh_base_url),
+                DataCollection.SENTINEL2_L1C.define_from("s2l1c", service_url=config.sh_base_url),
                 time_interval=(initial_date, final_date),
             )
         ],

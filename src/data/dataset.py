@@ -2,7 +2,6 @@ from pathlib import Path
 import random
 from typing import List, Tuple
 
-import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -20,7 +19,7 @@ def list_image_paths(root: Path) -> List[Path]:
 
 class PairedImageDataset(Dataset):
     """
-    Performs random HR crops (size TILE_SIZE_HR), with aligned LR crops.\n
+    Performs random HR crops (size 96, 128, 256, 384, 512), with aligned LR crops.\n
     Assumes *matching filenames* between LR and HR folders.
     Example: data/LR/sceneA.png  <-> data/HR/sceneA.png
     """
@@ -70,8 +69,10 @@ class PairedImageDataset(Dataset):
         lp, hp = self.pairs[idx]
         lr = imread(lp)
         hr = imread(hp)
+
         # ensure shapes are multiples of scale
         size_hr = TILE_SIZE_HR
+        # size_hr = random.choice([96, 128, 256, 384, 512])
         
         hr_crop = self._get_rand_crop(hr, size_hr)
         lr_crop = self._get_rand_crop(hr_crop, size_hr//self.scale)
@@ -88,4 +89,7 @@ class PairedImageDataset(Dataset):
         lr_t = torch.from_numpy(lr_crop.transpose(2,0,1)).float() / 255.0
         hr_t = torch.from_numpy(hr_crop.transpose(2,0,1)).float() / 255.0
         return {"lr": lr_t, "hr": hr_t}
+    
+    def __set_crop_size__(self, crop_size):
+        self.crop_size = crop_size
 

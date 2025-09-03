@@ -15,7 +15,7 @@ The SuperRes4Sentinel module has been developed as part of the image enhancing p
 
 
 ## Quickstart
-Most of the modules run as scripts. Each one has a brief general description and parameters overview using the `-h` or `--help` option. All of them run on default parameters when no options values are specified. Most of these values can be found and modified in the `constants.py` file, but we recommeno you tweak it in the options directly.
+Most of the modules run as scripts. Each one has a brief general description and parameters overview using the `-h` or `--help` option. All of them run on default parameters when no options values are specified. Most of these values can be found and modified in the `constants.py` file, but we recommend you tweak it in the options directly.
 
 All of these scripts are run from root:
 ```
@@ -64,7 +64,7 @@ SuperRes4Sentinel
 │   │   ├── ...pth
 │   │   └── ...
 │   └── res                     # Contains the SR images results after inference.
-│       ├── comparison          # Svaes all comparison of both LR-x{scale} and LR-x{scale}-x{prog_scale} of each image's upscaling.
+│       ├── comparison          # Saves a comparison of both LR-x{scale} and LR-x{scale}-x{prog_scale} of each image's upscaling.
 │       │   ├── ...png
 │       │   └── ...
 │       ├── x{scale1}           # Saves high resolution images' upscaling results at {scale1}.

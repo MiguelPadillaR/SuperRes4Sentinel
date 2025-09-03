@@ -18,9 +18,9 @@ def load_image(path: Path):
     return img
 
 
-def run_inference(image_paths: List[Path], model_name='edsr', scale=4, weigths_filename: str=None, progressive_to: int=None):
+def run_inference(image_paths: List[Path], model_name='edsr', scale=4, weights_filename: str=None, progressive_to: int=None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    cfg = ModelConfig(name=model_name, scale=scale, pretrained=CKPT_DIR / weigths_filename)
+    cfg = ModelConfig(name=model_name, scale=scale, pretrained=CKPT_DIR / weights_filename)
     model = build_model(cfg).to(device)
     model.eval()
 
@@ -85,18 +85,18 @@ def run_inference(image_paths: List[Path], model_name='edsr', scale=4, weigths_f
 
 if __name__ == '__main__':
     # Example usage:
-    #   python -m src.infer data/LR/36.22243_-5.84406_test.png data/LR/36.31215_-5.93888_test.png --model edsr --scale 4 --weigths best_edsr_x4.pth --progressive-to 8
-    #   python -m src.infer data/LR/*.png --model edsr --scale 4 --weigths best_edsr_x4.pth
-    #   python -m src.infer data/LR --model edsr --scale 4 --weigths best_edsr_x4.pth
+    #   python -m src.infer data/LR/36.22243_-5.84406_test.png data/LR/36.31215_-5.93888_test.png --model edsr --scale 4 --weights best_edsr_x4.pth --progressive-to 8
+    #   python -m src.infer data/LR/*.png --model edsr --scale 4 --weights best_edsr_x4.pth
+    #   python -m src.infer data/LR --model edsr --scale 4 --weights best_edsr_x4.pth --progressive-to 8
     
     parser = argparse.ArgumentParser(
         description="Run super-resolution inference on images or a directory of images.",
         epilog=(
             "USAGE:\n"
             "  # Run on two specific images\n"
-            "  python -m src.infer data/LR/img1.png data/LR/img2.png --model edsr --scale 4 --weigths best_edsr_x4.pth\n\n"
+            "  python -m src.infer data/LR/img1.png data/LR/img2.png --model edsr --scale 4 --weights best_edsr_x4.pth\n\n"
             "  # Run on all images in a directory\n"
-            "  python -m src.infer data/LR --model edsr --scale 4 --weigths best_edsr_x4.pth\n\n"
+            "  python -m src.infer data/LR --model edsr --scale 4 --weights best_edsr_x4.pth\n\n"
             "  # Progressive upscaling from x4 to x8\n"
             "  python -m src.infer data/LR/*.png --model edsr --scale 4 --progressive-to 8\n"
             " "
@@ -153,4 +153,4 @@ if __name__ == '__main__':
     if len(image_paths) == 1 and image_paths[0].is_dir():
         image_paths = sorted([p for p in image_paths[0].iterdir() if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".tif", ".tiff"}])
 
-    run_inference(image_paths, model_name=args.model, scale=args.scale, weigths_filename=args.weights, progressive_to=args.progressive_to)
+    run_inference(image_paths, model_name=args.model, scale=args.scale, weights_filename=args.weights, progressive_to=args.progressive_to)

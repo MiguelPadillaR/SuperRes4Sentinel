@@ -49,6 +49,8 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
     ckpt_model_path.mkdir(parents=True, exist_ok=True)
 
     for epoch in range(1, epochs+1):
+        crop_size = random.choice([96, 128, 256, 384, 512])
+        ds.__set_crop_size__(crop_size)   # method you add in PairedImageDataset
         model.train()
         pbar = tqdm(dl_train, desc=f'Epoch {epoch}/{epochs}')
         for batch in pbar:
@@ -75,7 +77,7 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
                     ssims.append(get_ssim(sr_np, hr_np))
             mean_psnr = float(np.mean(psnrs))
             mean_ssim = float(np.mean(ssims))
-            print(f'Val PSNR: {mean_psnr:.2f} dB | SSIM: {mean_ssim:.4f}')
+            print(f'Val PSNR: {mean_psnr:.2f} dB | Best PSNR: {best_psnr:.2f} dB | SSIM: {mean_ssim:.4f} | Crop size: {crop_size} px')
 
             # Save checkpoint for only 10 models (regardless of epochs) or when best model appears
             offset = max(1, epochs // 10)
@@ -85,10 +87,22 @@ def train(batch_size=BATCH_SIZE, epochs=EPOCHS, learning_rate=LR_INIT, model_nam
                 torch.save(model.state_dict(), ckpt_dir / f'best_{model_name}_x{scale}.pth')
             elif epoch%offset == 0: 
                 ckpt_path = ckpt_model_path / f'{model_name}_x{scale}_e{epoch:03d}_psnr{mean_psnr:.2f}.pth'
-                torch.save(model.state_dict(), ckpt_path)
+                torch.save({
+                    "epoch": epoch,
+                    "model_state": model.state_dict(),
+                    "optimizer_state": optimizer.state_dict(),
+                    "scheduler_state": scheduler.state_dict(),
+                    "best_psnr": best_psnr,
+                }, ckpt_path)
             elif epoch == epochs:
                 ckpt_path = ckpt_model_path / f'last_{model_name}_x{scale}.pth'
-                torch.save(model.state_dict(), ckpt_path)
+                torch.save({
+                    "epoch": epoch,
+                    "model_state": model.state_dict(),
+                    "optimizer_state": optimizer.state_dict(),
+                    "scheduler_state": scheduler.state_dict(),
+                    "best_psnr": best_psnr,
+                }, ckpt_path)
 
 if __name__ == "__main__":
 

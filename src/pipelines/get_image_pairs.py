@@ -180,12 +180,12 @@ def main():
     )
 
     parser.add_argument(
-        "-bz", "--bounded-zone",
+        "-bb", "--bounded-box",
         type=float,
         nargs=4,
         metavar=("lat_max", "lat_min", "lon_max", "lon_min"),
         default=[LAT_MAX, LAT_MIN, LON_MAX, LON_MIN],
-        help="Coordinates of the bounded zone box to take the coordinates from (default: entire Spain)."
+        help="Coordinates of the bounded box to take the coordinates from (default: most of Spain)."
     )
 
     args = parser.parse_args()
