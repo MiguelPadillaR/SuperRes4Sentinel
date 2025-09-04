@@ -104,23 +104,17 @@ def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, 
     
     return coordinates
 
-def generate_evalscript(bands=None):
+def generate_evalscript(bands=["B02", "B03", "B04"], bit_scale="UINT16"):
     """
     Generate an evalscript for SentinelHub requests.
     Arguments:
-        bands (list | None): Bands to include, e.g. "B02" or ["B02", "B03", "B04"]. If None, defaults to True Color (B04, B03, B02).
-        get_separate_bands (bool): Downloads bands in separte files. Default is False.
+        bands (list | None): Bands to include, e.g. `"B02"` or `["B02", "B03", "B04"]`. If None, defaults to True Color (B04, B03, B02).
+        bit_scale (str): The bit scale the bands are needed (default is `"UINT16"` | Valid values: `"AUTO"`, `"UINT8"`, `"UINT16"`, `"FLOAT32"`)
     Returns:
         evalscript (str): The generated evalscript for Sentinel's image request.
     """
-    if bands is None:
-        # Default to True Color: R=B04, G=B03, B=B02
-        input_bands = ["B02", "B03", "B04"]
-        output_bands = ["B04", "B03", "B02"]
-    else:
-        input_bands = bands
-        output_bands = bands
-
+    input_bands = bands
+    output_bands = bands
     bands_str = ", ".join([f'"{band}"' for band in input_bands])
     evalscript = f"""
     //VERSION=3
@@ -131,7 +125,8 @@ def generate_evalscript(bands=None):
                 bands: [{bands_str}]
             }}],
             output: {{
-                bands: {len(output_bands)}
+                bands: {len(output_bands)},
+                ºsampleType: "{bit_scale}"
             }}
         }};
     }}

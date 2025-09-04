@@ -22,6 +22,12 @@ class L1BSRSR:
     @torch.inference_mode()
     def super_resolve(self, img_bgrn_u16: np.ndarray) -> np.ndarray:
         ten = to_torch_4ch(img_bgrn_u16, self.device)
+        print("Input tensor shape:", ten.shape, ten.min().item(), ten.max().item())
+
         sr = self.model(ten)
+        print("SR tensor shape:", sr.shape, sr.min().item(), sr.max().item())
+
         out = from_torch_to_u16(sr)
+        print("Output np shape:", out.shape, out.min(), out.max())
+        
         return out
