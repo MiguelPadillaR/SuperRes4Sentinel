@@ -9,7 +9,7 @@ from safetensors.torch import load_file as load_safetensors
 from .RCAN_wrapper import RCAN
 from .utils import to_torch_4ch, from_torch_to_u16
 
-class L1BSRSR:
+class L1BSR:
     def __init__(self, weights_path: str, device: Optional[str] = None):
         if device is None: device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device)
@@ -22,12 +22,6 @@ class L1BSRSR:
     @torch.inference_mode()
     def super_resolve(self, img_bgrn_u16: np.ndarray) -> np.ndarray:
         ten = to_torch_4ch(img_bgrn_u16, self.device)
-        print("Input tensor shape:", ten.shape, ten.min().item(), ten.max().item())
-
         sr = self.model(ten)
-        print("SR tensor shape:", sr.shape, sr.min().item(), sr.max().item())
-
         out = from_torch_to_u16(sr)
-        print("Output np shape:", out.shape, out.min(), out.max())
-        
         return out

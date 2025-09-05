@@ -29,17 +29,15 @@ def get_ssim(img1: np.ndarray, img2: np.ndarray) -> float:
 
 
 def make_grid(images, ncols=3, pad=4) -> np.ndarray:
-    # images: list of HxWx3 uint8
+    """Make a grid of images (HxWx3 uint8) with padding."""
     h = max(im.shape[0] for im in images)
     w = max(im.shape[1] for im in images)
-    norm = [cv2.copyMakeBorder(im, 0, h-im.shape[0], 0, w-im.shape[1], cv2.BORDER_CONSTANT, value=(255,255,255)) for im in images]
+    norm = [cv2.copyMakeBorder(im, 0, h - im.shape[0], 0, w - im.shape[1], cv2.BORDER_CONSTANT, value=(255,255,255)) for im in images]
     n = len(norm)
     rows = math.ceil(n / ncols)
-    grid = np.ones(((h+pad)*rows+pad, (w+pad)*ncols+pad, 3), dtype=np.uint8)*255
+    grid = np.ones(((h+pad)*rows+pad, (w+pad)*ncols+pad, 3), dtype=np.uint8) * 255
     for idx, im in enumerate(norm):
-        r = idx // ncols
-        c = idx % ncols
-        y = pad + r*(h+pad)
-        x = pad + c*(w+pad)
+        r, c = divmod(idx, ncols)
+        y, x = pad + r*(h+pad), pad + c*(w+pad)
         grid[y:y+h, x:x+w] = im
     return grid

@@ -104,29 +104,53 @@ def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, 
     
     return coordinates
 
-def generate_evalscript(bands=["B02", "B03", "B04"], bit_scale="UINT16"):
+def generate_evalscript(
+        bands=["B02", "B03", "B04"], 
+        units="REFLECTANCE", 
+        data_type="AUTO", 
+        mosaicking_type="ORBIT", 
+        bit_scale="FLOAT32", 
+        id="default", 
+        rendering=False, 
+        mask=False 
+    ):
     """
     Generate an evalscript for SentinelHub requests.
+
     Arguments:
         bands (list | None): Bands to include, e.g. `"B02"` or `["B02", "B03", "B04"]`. If None, defaults to True Color (B04, B03, B02).
-        bit_scale (str): The bit scale the bands are needed (default is `"UINT16"` | Valid values: `"AUTO"`, `"UINT8"`, `"UINT16"`, `"FLOAT32"`)
+        units (str): Units of the input bands. Default is `"REFLECTANCE"`.
+        data_type (str): Data type for input bands. Default is `"AUTO"`.
+        mosaicking_type (str): Type of mosaicking. Default is `"ORBIT"`.
+        bit_scale (str): Bit scale of output bands. Default is `"FLOAT32"`. Valid values: `"AUTO"`, `"UINT8"`, `"UINT16"`, `"FLOAT32"`.
+        id (str): Response ID. Default is `"default"`.
+        rendering (bool): Whether to apply rendering/visualization. Default is `False`.
+        mask (bool): Whether to output mask. Default is `False`.
+
     Returns:
-        evalscript (str): The generated evalscript for Sentinel's image request.
+        evalscript (str): The generated evalscript for SentinelHub image request.
     """
     input_bands = bands
     output_bands = bands
     bands_str = ", ".join([f'"{band}"' for band in input_bands])
+
     evalscript = f"""
     //VERSION=3
 
     function setup() {{
         return {{
             input: [{{
-                bands: [{bands_str}]
+                bands: [{bands_str}],
+                units: "{units}",                       // default units for Sentinel-2 bands
+                dataType: "{data_type}",                // AUTO will use the native data type (does not alter values)
+                mosaicking: "{mosaicking_type}"         // default mosaicking (can be NONE, ORBIT, or other)
             }}],
             output: {{
                 bands: {len(output_bands)},
-                ºsampleType: "{bit_scale}"
+                sampleType: "{bit_scale}",              // e.g., UINT16
+                id: "{id}",                             // default response ID
+                rendering: {str(rendering).lower()},    // do not apply visualization
+                mask: {str(mask).lower()}               // do not output mask
             }}
         }};
     }}
