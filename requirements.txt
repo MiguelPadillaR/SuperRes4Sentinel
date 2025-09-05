@@ -5,6 +5,7 @@ pillow
 python-opencv
 rasterio
 requests
+safetensors
 scikit-image
 sentinelhub
 torch
