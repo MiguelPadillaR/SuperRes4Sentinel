@@ -18,9 +18,9 @@ config = SHConfig(CONFIG_NAME)
 if not config.sh_client_id or not config.sh_client_secret:
     print("Warning! To use Process API, please provide the credentials (OAuth client ID and client secret).")
 
-# ----------------------------
+# ----------------------------------
 # SENTINEL REQUEST
-# ----------------------------
+# ----------------------------------
 def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color):
     """
     Fetches a Sentinel image for the given lat, lon, size, and zoom level,
@@ -39,6 +39,7 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_colo
     print(f"Image shape at {resolution} m resolution: {size} pixels")
 
     # Get a range of dates to ensure cloud-free scenes
+    # Get a range of dates to ensure cloud-free scenes
     now = datetime.now()
     delta = DELTA_DAYS
     look_from = now - timedelta(days=delta)
@@ -50,11 +51,11 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_colo
         input_data=[
             SentinelHubRequest.input_data(
                 DataCollection.SENTINEL2_L2A.define_from("s2l2a", service_url=config.sh_base_url),
-                # Pick a recent interval (e.g., last week) to ensure cloud-free scenes
                 time_interval=(initial_date, final_date),
+                # maxcc=0.2  # maximum cloud coverage (20%)
             )
         ],
-        responses=[SentinelHubRequest.output_response("default", MimeType.PNG)],
+        responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
         bbox=bbox,
         size=size,
         config=config,
@@ -72,9 +73,9 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_colo
 
     print(f"Sentinel LR image saved to {filepath}")
 
-# ----------------------------
-# GOOGLE MAPS REQUEST
-# ----------------------------
+# ----------------------------------
+# GOOGLE MAPS REQUEST (DEPRECATED)
+# ----------------------------------
 def download_google_image(lat, lon, size, zoom, filename):
     """
     Fetches a Google Maps satellite image for the given lat, lon, size, and zoom level,
@@ -94,6 +95,10 @@ def download_google_image(lat, lon, size, zoom, filename):
 
     url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lon}&zoom={zoom}&size={size[0]}x{size[1]}&maptype=satellite&style=feature:all|element:labels|visibility:off&key={GOOGLE_MAPS_STATIC_API_KEY}"
     resp = requests.get(url)
+    print("Google response status:", resp.status_code, resp.headers.get("Content-Type"))
+    if resp.status_code != 200:
+        print(f"\nERROR {resp.status_code}:\nResponse text:", resp.text[:500] + "...\n")  # print first 500 chars
+
     google = Image.open(io.BytesIO(resp.content))
 
     # Quick sanity check: if file is too small, probably "no imagery"
@@ -117,6 +122,84 @@ def download_google_image(lat, lon, size, zoom, filename):
 
     return is_image_downloaded
 
+# ----------------------------------
+# ESRI REQUEST
+# ----------------------------------
+
+def deg_to_num(lat, lon, zoom):
+    """Convert lat/lon to XYZ tile numbers."""
+    lat_rad = math.radians(lat)
+    n = 2.0 ** zoom
+    xtile = int((lon + 180.0) / 360.0 * n)
+    ytile = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
+    return xtile, ytile
+
+def num_to_deg(xtile, ytile, zoom):
+    """Convert XYZ tile numbers back to lat/lon (NW corner)."""
+    n = 2.0 ** zoom
+    lon_deg = xtile / n * 360.0 - 180.0
+    lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
+    lat_deg = math.degrees(lat_rad)
+    return lat_deg, lon_deg
+
+def fetch_tile(z, x, y):
+    """Fetch a single ESRI World Imagery tile."""
+    url = f"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    resp = requests.get(url)
+    resp.raise_for_status()
+    return Image.open(io.BytesIO(resp.content))
+
+def download_esri_image(lat, lon, filename, size=(512, 512), zoom=17):
+    """
+    Fetch an ESRI World Imagery image centered at lat/lon.
+    Works like Google Static Maps (satellite).
+    
+    Args:
+        lat, lon (float): Center coordinates
+        zoom (int): Zoom level
+        size (tuple): Output size (width, height) in pixels
+    """
+    # Determine center tile
+    x, y = deg_to_num(lat, lon, zoom)
+
+    # Calculate required number of tiles to cover requested size
+    tiles_x = math.ceil(size[0] / TILE_SIZE_ESRI) + 2
+    tiles_y = math.ceil(size[1] / TILE_SIZE_ESRI) + 2
+
+    # Fetch tiles around the center
+    mosaic = Image.new("RGB", (tiles_x * TILE_SIZE_ESRI, tiles_y * TILE_SIZE_ESRI))
+    for dx in range(-tiles_x // 2, tiles_x // 2 + 1):
+        for dy in range(-tiles_y // 2, tiles_y // 2 + 1):
+            try:
+                tile = fetch_tile(zoom, x + dx, y + dy)
+                px = (dx + tiles_x // 2) * TILE_SIZE_ESRI
+                py = (dy + tiles_y // 2) * TILE_SIZE_ESRI
+                mosaic.paste(tile, (px, py))
+            except Exception as e:
+                print(f"Tile fetch failed: z={zoom}, x={x+dx}, y={y+dy}, err={e}")
+
+    # # Find center tile's geographic bounds
+    # lat_ul, lon_ul = num_to_deg(x, y, zoom)  # NW corner of center tile
+    # lat_lr, lon_lr = num_to_deg(x + 1, y + 1, zoom)  # SE corner of center tile
+
+    # Approximate resolution
+    mpp = 156543.03392 * math.cos(math.radians(lat)) / (2 ** zoom)  # meters per pixel
+    print(f"Approximate resolution: {mpp:.2f} m/px at zoom {zoom}")
+
+    # Crop mosaic to requested size centered at lat/lon
+    cx = mosaic.width // 2
+    cy = mosaic.height // 2
+    left = cx - size[0] // 2
+    top = cy - size[1] // 2
+    right = left + size[0]
+    bottom = top + size[1]
+
+    # Save HR image
+    filepath = HR_DIR / filename
+    mosaic.crop((left, top, right, bottom)).save(filepath)
+    print(f"ESRI HR image saved to {filepath}")
+
+
 def download_image_pairs(lat, lon, size, zoom, bands=None):
     """
     Downloads a pair of images (Google Maps and Sentinel) for the given latitude and longitude.
@@ -128,19 +211,24 @@ def download_image_pairs(lat, lon, size, zoom, bands=None):
         zoom (int): Zoom level for the image.
         filename (str): Filename to save the image.
     """
-    is_google_image_downloaded = True
+    # is_hr_image_downloaded = True
     filename = f"{str(lat)[:8]}_{str(lon)[:8]}_test.png"
     print(f"Fetching images for coordinates: {lat}, {lon}")
-    is_google_image_downloaded = download_google_image(lat, lon, size, zoom, filename)
-    if is_google_image_downloaded:
-        # Get script that will retrieve image bands
-        evalscript_true_color = generate_evalscript(bands)
-        download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
-        print()
-    else:
-        lat, lon = get_n_random_coordinate_pairs(1)[0]
-        print(f"Trying with new coordinates:\n{lat},{lon}")
-        download_image_pairs(lat, lon, size, zoom)
+    # is_hr_image_downloaded = download_google_image(lat, lon, size, zoom, filename)
+    # if is_hr_image_downloaded:
+    #     # Get script that will retrieve image bands
+    #     evalscript_true_color = generate_evalscript(bands)
+    #     download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
+    #     print()
+    # else:
+    #     lat, lon = get_n_random_coordinate_pairs(1)[0]
+    #     print(f"Trying with new coordinates:\n{lat},{lon}")
+    #     download_image_pairs(lat, lon, size, zoom)
+    download_esri_image(lat, lon, filename, size, zoom)
+    evalscript_true_color = generate_evalscript() if bands is None else generate_evalscript([bands]) if len([bands]) == 1  else generate_evalscript(bands)  
+    download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
+    print()
+
 
 def main():
     """
@@ -191,7 +279,7 @@ def main():
 
     args = parser.parse_args()
     n = args.number
-    bounded_zone = args.bounded_zone
+    bounded_zone = args.bounded_box
 
     zoom = ZOOM
     size = (SIZE,SIZE)

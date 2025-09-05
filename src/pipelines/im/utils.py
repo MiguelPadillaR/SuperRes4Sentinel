@@ -105,24 +105,24 @@ def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, 
     return coordinates
 
 def generate_evalscript(
-        bands=["B02", "B03", "B04"], 
-        units="REFLECTANCE", 
-        data_type="AUTO", 
-        mosaicking_type="ORBIT", 
-        bit_scale="FLOAT32", 
+        bands=["B04", "B03", "B02"], 
+        units=None, 
+        data_type=None, 
+        mosaicking_type=None, 
+        bit_scale=None, 
         id="default", 
         rendering=False, 
         mask=False 
     ):
     """
-    Generate an evalscript for SentinelHub requests.
+    Generate an evalscript for SentinelHub requests. The script is dinamically generated with the values provided.
 
     Arguments:
-        bands (list | None): Bands to include, e.g. `"B02"` or `["B02", "B03", "B04"]`. If None, defaults to True Color (B04, B03, B02).
-        units (str): Units of the input bands. Default is `"REFLECTANCE"`.
-        data_type (str): Data type for input bands. Default is `"AUTO"`.
-        mosaicking_type (str): Type of mosaicking. Default is `"ORBIT"`.
-        bit_scale (str): Bit scale of output bands. Default is `"FLOAT32"`. Valid values: `"AUTO"`, `"UINT8"`, `"UINT16"`, `"FLOAT32"`.
+        bands (list | None): Bands to include, e.g. `"B02"` or `["B02", "B03", "B04"]`.
+        units (str | None): Units of the input bands (e.g. "DN", "REFLECTANCE"). If None, omitted.
+        data_type (str | None): Data type for input bands. If None, omitted.
+        mosaicking_type (str | None): Type of mosaicking. If None, omitted.
+        bit_scale (str | None): Bit scale of output bands. If None, omitted.
         id (str): Response ID. Default is `"default"`.
         rendering (bool): Whether to apply rendering/visualization. Default is `False`.
         mask (bool): Whether to output mask. Default is `False`.
@@ -134,23 +134,31 @@ def generate_evalscript(
     output_bands = bands
     bands_str = ", ".join([f'"{band}"' for band in input_bands])
 
+    # Build optional parts dynamically
+    input_options = [f"bands: [{bands_str}]"]
+    if units is not None:
+        input_options.append(f'units: "{units}"')
+    if data_type is not None:
+        input_options.append(f'dataType: "{data_type}"')
+    if mosaicking_type is not None:
+        input_options.append(f'mosaicking: "{mosaicking_type}"')
+
+    output_options = [f"bands: {len(output_bands)}", f'id: "{id}"']
+    if bit_scale is not None:
+        output_options.append(f'sampleType: "{bit_scale}"')
+    output_options.append(f"rendering: {str(rendering).lower()}")
+    output_options.append(f"mask: {str(mask).lower()}")
+
     evalscript = f"""
     //VERSION=3
 
     function setup() {{
         return {{
             input: [{{
-                bands: [{bands_str}],
-                units: "{units}",                       // default units for Sentinel-2 bands
-                dataType: "{data_type}",                // AUTO will use the native data type (does not alter values)
-                mosaicking: "{mosaicking_type}"         // default mosaicking (can be NONE, ORBIT, or other)
+                {', '.join(input_options)}
             }}],
             output: {{
-                bands: {len(output_bands)},
-                sampleType: "{bit_scale}",              // e.g., UINT16
-                id: "{id}",                             // default response ID
-                rendering: {str(rendering).lower()},    // do not apply visualization
-                mask: {str(mask).lower()}               // do not output mask
+                {', '.join(output_options)}
             }}
         }};
     }}
