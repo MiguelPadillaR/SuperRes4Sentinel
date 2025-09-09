@@ -16,11 +16,21 @@ if not config.sh_client_id or not config.sh_client_secret:
 # ----------------------------
 # SENTINEL REQUEST
 # ----------------------------
-def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color):
-    resolution = 10  # meters per pixel for Sentinel
-    bbox = get_bbox_from_zoom(lat, lon, size, zoom)
+def download_sentinel_image(lat, lon, size, zoom, filename, evalscript):
+    """
+    Fetches a Sentinel image for the given lat, lon, size, and zoom level,
+    and saves it to the specified filename.
+    
+    Arguments:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+        size (tuple): Size of the image in pixels (width, height).
+        zoom (int): Zoom level for the image.
+        filename (str): Filename to save the image.
+        evalscript (str): Javascript code that defines how the satellite data shall be retrieved and processed.
+    """
 
-    print(f"Image shape at {resolution} m resolution: {size} pixels")
+    bbox = get_bbox_from_zoom(lat, lon, size, zoom)
 
     # Get a range of dates to ensure cloud-free scenes
     now = datetime.now()
@@ -30,12 +40,12 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_colo
     final_date = f"{now.year}-{now.month:02d}-{now.day:02d}"
 
     sh_request = SentinelHubRequest(
-        evalscript=evalscript_true_color,
+        evalscript=evalscript,
         input_data=[
             SentinelHubRequest.input_data(
                 DataCollection.SENTINEL2_L1C.define_from("s2l1c", service_url=config.sh_base_url),
                 time_interval=(initial_date, final_date),
-                # maxcc=0.2  # maximum cloud coverage (20%)
+                maxcc=0.2  # maximum cloud coverage (20%)
             )
         ],
         responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
@@ -63,11 +73,12 @@ def download_image_bands(lat, lon, size, zoom, bands=None):
     for band in bands:
         filename = f"{str(lat)[:8]}_{str(lon)[:8]}-{band}.tiff"
         print(f"Fetching images for coordinates: {lat}, {lon}")
+        
         # Get script that will retrieve  image bands
         evalscript_band = generate_evalscript(
             bands=[band],
             units="DN",
-            bit_scale="UINT16",
+            bit_scale="UINT16"
         )
 
         download_sentinel_image(lat, lon, size, zoom, filename, evalscript_band)
@@ -75,7 +86,7 @@ def download_image_bands(lat, lon, size, zoom, bands=None):
 
 def main():
     """
-    Downloads n pairs of HR-LR Google-Sentinel images.
+    Downloads n pairs of Sentinel band images, specifically, B02, B03, B04 and B08.
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     BAND_DIR.mkdir(parents=True, exist_ok=True)

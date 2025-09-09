@@ -19,61 +19,6 @@ if not config.sh_client_id or not config.sh_client_secret:
     print("Warning! To use Process API, please provide the credentials (OAuth client ID and client secret).")
 
 # ----------------------------------
-# SENTINEL REQUEST
-# ----------------------------------
-def download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color):
-    """
-    Fetches a Sentinel image for the given lat, lon, size, and zoom level,
-    and saves it to the specified filename.
-    
-    Arguments:
-        lat (float): Latitude of the location.
-        lon (float): Longitude of the location.
-        size (tuple): Size of the image in pixels (width, height).
-        zoom (int): Zoom level for the image.
-        filename (str): Filename to save the image.
-    """
-    resolution = 5  # meters per pixel for Sentinel
-    bbox = get_bbox_from_zoom(lat, lon, size, zoom)
-
-    print(f"Image shape at {resolution} m resolution: {size} pixels")
-
-    # Get a range of dates to ensure cloud-free scenes
-    # Get a range of dates to ensure cloud-free scenes
-    now = datetime.now()
-    delta = DELTA_DAYS
-    look_from = now - timedelta(days=delta)
-    initial_date = f"{look_from.year}-{look_from.month:02d}-{look_from.day:02d}"
-    final_date = f"{now.year}-{now.month:02d}-{now.day:02d}"
-
-    request_true_color = SentinelHubRequest(
-        evalscript=evalscript_true_color,
-        input_data=[
-            SentinelHubRequest.input_data(
-                DataCollection.SENTINEL2_L2A.define_from("s2l2a", service_url=config.sh_base_url),
-                time_interval=(initial_date, final_date),
-                # maxcc=0.2  # maximum cloud coverage (20%)
-            )
-        ],
-        responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
-        bbox=bbox,
-        size=size,
-        config=config,
-    )
-
-    true_color_imgs = request_true_color.get_data()
-    image = true_color_imgs[0]
-
-    sentinel = Image.fromarray(image)
-    # Enhance brightness (1.0 = original, >1.0 = brighter, <1.0 = darker)
-    enhancer = ImageEnhance.Brightness(sentinel)
-    sentinel = enhancer.enhance(4.0)
-    filepath = LR_DIR / filename
-    sentinel.save(filepath)
-
-    print(f"Sentinel LR image saved to {filepath}")
-
-# ----------------------------------
 # GOOGLE MAPS REQUEST (DEPRECATED)
 # ----------------------------------
 def download_google_image(lat, lon, size, zoom, filename):
@@ -91,36 +36,117 @@ def download_google_image(lat, lon, size, zoom, filename):
     Returns:
         is_image_downloaded (bool): True if the image was downloaded and saved, False otherwise.
     """
-    is_image_downloaded = True
+    is_valid_image = True
 
     url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lon}&zoom={zoom}&size={size[0]}x{size[1]}&maptype=satellite&style=feature:all|element:labels|visibility:off&key={GOOGLE_MAPS_STATIC_API_KEY}"
     resp = requests.get(url)
     print("Google response status:", resp.status_code, resp.headers.get("Content-Type"))
     if resp.status_code != 200:
         print(f"\nERROR {resp.status_code}:\nResponse text:", resp.text[:500] + "...\n")  # print first 500 chars
-
     google = Image.open(io.BytesIO(resp.content))
 
-    # Quick sanity check: if file is too small, probably "no imagery"
-    if len(resp.content) < 15_000:  # tweak threshold as needed
-        print(f"No imagery (small file) at {lat},{lon}")
-        return False
-
-    # Check if the image is mainly white (no imagery available)
-    google_converted = Image.open(io.BytesIO(resp.content)).convert("L")
-    arr = np.array(google_converted)
-    std_val = np.std(arr)
-
-    # If almost all pixels are very bright (white background) and there's little variation, it's probably "no imagery"
-    if np.mean(arr) > 230 and std_val < 15:
-        print(f"No imagery available for {lat},{lon}")
-        is_image_downloaded = False
-    else:
+    is_valid_image = perform_image_sanity_check(lat, lon, resp)
+    if is_valid_image:
         filepath = HR_DIR / filename
         google.save(filepath)
         print(f"Google HR image saved to {filepath}")
 
-    return is_image_downloaded
+    return is_valid_image
+
+# ----------------------------------
+# SENTINEL REQUEST
+# ----------------------------------
+def adjust_temperature(img: Image.Image, factor: float = -0.1) -> Image.Image:
+    """
+    Adjust image color temperature.
+    Negative factor = colder (more blue), positive factor = warmer (more red/yellow).
+    """
+    arr = np.array(img).astype(np.float32)
+
+    # factor in range ~ [-1, 1]
+    if factor < 0:  # colder
+        arr[..., 0] *= 1 + factor  # reduce red
+        arr[..., 2] *= 1 - factor  # boost blue
+    else:  # warmer
+        arr[..., 0] *= 1 + factor  # boost red
+        arr[..., 2] *= 1 - factor  # reduce blue
+
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return Image.fromarray(arr)
+
+def download_sentinel_image(lat, lon, size, zoom, filename, evalscript):
+    """
+    Fetches a Sentinel image for the given lat, lon, size, and zoom level,
+    and saves it to the specified filename.
+    
+    Arguments:
+        lat (float): Latitude of the location.
+        lon (float): Longitude of the location.
+        size (tuple): Size of the image in pixels (width, height).
+        zoom (int): Zoom level for the image.
+        filename (str): Filename to save the image.
+        evalscript (str): Javascript code that defines how the satellite data shall be retrieved and processed.
+    """
+    bbox = get_bbox_from_zoom(lat, lon, size, zoom)
+
+    # Get a range of dates to ensure cloud-free scenes
+    now = datetime.now()
+    delta = DELTA_DAYS
+    look_from = now - timedelta(days=delta)
+    initial_date = f"{look_from.year}-{look_from.month:02d}-{look_from.day:02d}"
+    final_date = f"{now.year}-{now.month:02d}-{now.day:02d}"
+
+    request_true_color = SentinelHubRequest(
+        evalscript=evalscript,
+        input_data=[
+            SentinelHubRequest.input_data(
+                DataCollection.SENTINEL2_L2A.define_from("s2l2a", service_url=config.sh_base_url),
+                time_interval=(initial_date, final_date),
+                maxcc=0.2  # maximum cloud coverage (20%)
+            )
+        ],
+        responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
+        bbox=bbox,
+        size=size,
+        config=config,
+    )
+    
+    # Retrieve image data
+    true_color_imgs = request_true_color.get_data()
+    image = true_color_imgs[0]
+    if not true_color_imgs or true_color_imgs[0] is None:
+        print("No Sentinel-2 imagery available for given time and location")
+        return False
+
+    # Scale to 0–255 if reflectance (float values ~0–1)
+    if np.issubdtype(image.dtype, np.floating):
+        image = np.clip(image * 255, 0, 255).astype(np.uint8)
+    elif image.dtype == np.uint16:
+        # optional: scale 16-bit down to 8-bit for PNG/JPEG
+        image = (image / 256).astype(np.uint8)
+
+    # Convert to PIL image
+    img = Image.fromarray(image)
+
+    # Save into bytes
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    img_bytes = buf.getvalue()
+
+    is_valid_image = perform_image_sanity_check(lat, lon, img_bytes)
+    if is_valid_image:
+        sentinel = Image.fromarray(image)
+        
+        sentinel = adjust_temperature(sentinel, factor=-0.2)  # colder
+
+        # Enhance brightness (>1.0 = brighter)
+        enhancer = ImageEnhance.Brightness(sentinel)
+        sentinel = enhancer.enhance(4.0)
+        filepath = LR_DIR / filename
+        sentinel.save(filepath)
+
+        print(f"Sentinel LR image saved to {filepath}")
+    return is_valid_image
 
 # ----------------------------------
 # ESRI REQUEST
@@ -134,20 +160,20 @@ def deg_to_num(lat, lon, zoom):
     ytile = int((1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n)
     return xtile, ytile
 
-def num_to_deg(xtile, ytile, zoom):
-    """Convert XYZ tile numbers back to lat/lon (NW corner)."""
-    n = 2.0 ** zoom
-    lon_deg = xtile / n * 360.0 - 180.0
-    lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
-    lat_deg = math.degrees(lat_rad)
-    return lat_deg, lon_deg
-
 def fetch_tile(z, x, y):
     """Fetch a single ESRI World Imagery tile."""
     url = f"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     resp = requests.get(url)
     resp.raise_for_status()
     return Image.open(io.BytesIO(resp.content))
+
+def latlon_to_pixel(lat, lon, zoom, tile_size=256):
+    """Convert lat/lon to pixel coordinates in the global Web Mercator map."""
+    lat_rad = math.radians(lat)
+    n = 2.0 ** zoom
+    x = (lon + 180.0) / 360.0 * n * tile_size
+    y = (1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi) / 2.0 * n * tile_size
+    return int(x), int(y)
 
 def download_esri_image(lat, lon, filename, size=(512, 512), zoom=17):
     """
@@ -178,17 +204,24 @@ def download_esri_image(lat, lon, filename, size=(512, 512), zoom=17):
             except Exception as e:
                 print(f"Tile fetch failed: z={zoom}, x={x+dx}, y={y+dy}, err={e}")
 
-    # # Find center tile's geographic bounds
-    # lat_ul, lon_ul = num_to_deg(x, y, zoom)  # NW corner of center tile
-    # lat_lr, lon_lr = num_to_deg(x + 1, y + 1, zoom)  # SE corner of center tile
-
     # Approximate resolution
     mpp = 156543.03392 * math.cos(math.radians(lat)) / (2 ** zoom)  # meters per pixel
-    print(f"Approximate resolution: {mpp:.2f} m/px at zoom {zoom}")
+    print(f"Approximate ESRI resolution: {mpp:.2f} m/px at zoom {zoom}")
+
+    # Find exact pixel of lat/lon
+    global_px, global_py = latlon_to_pixel(lat, lon, zoom, TILE_SIZE_ESRI)
+
+    # Compute mosaic origin in global pixels
+    origin_tile_x = x - tiles_x // 2
+    origin_tile_y = y - tiles_y // 2
+    origin_px = origin_tile_x * TILE_SIZE_ESRI
+    origin_py = origin_tile_y * TILE_SIZE_ESRI
+
+    # Pixel position of lat/lon in the mosaic
+    cx = global_px - origin_px
+    cy = global_py - origin_py
 
     # Crop mosaic to requested size centered at lat/lon
-    cx = mosaic.width // 2
-    cy = mosaic.height // 2
     left = cx - size[0] // 2
     top = cy - size[1] // 2
     right = left + size[0]
@@ -211,28 +244,24 @@ def download_image_pairs(lat, lon, size, zoom, bands=None):
         zoom (int): Zoom level for the image.
         filename (str): Filename to save the image.
     """
-    # is_hr_image_downloaded = True
+    has_imagery = True
     filename = f"{str(lat)[:8]}_{str(lon)[:8]}_test.png"
     print(f"Fetching images for coordinates: {lat}, {lon}")
-    # is_hr_image_downloaded = download_google_image(lat, lon, size, zoom, filename)
-    # if is_hr_image_downloaded:
-    #     # Get script that will retrieve image bands
-    #     evalscript_true_color = generate_evalscript(bands)
-    #     download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
-    #     print()
-    # else:
-    #     lat, lon = get_n_random_coordinate_pairs(1)[0]
-    #     print(f"Trying with new coordinates:\n{lat},{lon}")
-    #     download_image_pairs(lat, lon, size, zoom)
-    download_esri_image(lat, lon, filename, size, zoom)
-    evalscript_true_color = generate_evalscript() if bands is None else generate_evalscript([bands]) if len([bands]) == 1  else generate_evalscript(bands)  
-    download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
-    print()
 
+    # Get script that will retrieve image bands
+    evalscript_true_color = generate_evalscript() if bands is None else generate_evalscript([bands]) if len(bands) < 2  else generate_evalscript(bands)  
+    has_imagery = download_sentinel_image(lat, lon, size, zoom, filename, evalscript_true_color)
+    if has_imagery:
+        download_esri_image(lat, lon, filename, size, zoom)
+        print()
+    else:
+        lat, lon = get_n_random_coordinate_pairs(1)[0]
+        print(f"Trying with new coordinates:\n{lat},{lon}")
+        download_image_pairs(lat, lon, size, zoom)
 
 def main():
     """
-    Downloads n pairs of HR-LR Google-Sentinel images.
+    Downloads n pairs of HR-LR ESRI-Sentinel images.
     """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     LR_DIR.mkdir(parents=True, exist_ok=True)
