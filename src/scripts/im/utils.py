@@ -1,7 +1,9 @@
+import io
 import math
 import numpy as np
 import random
 import rasterio
+from PIL import Image
 from rasterio.transform import from_bounds
 from sentinelhub import BBox, CRS
 from src.utils.constants import LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
@@ -105,34 +107,38 @@ def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, 
     return coordinates
 
 def generate_evalscript(
-        bands=["B04", "B03", "B02"], 
+        bands=["B02", "B03", "B04"], 
         units=None, 
-        data_type=None, 
+        data_type="UINT8", 
         mosaicking_type=None, 
         bit_scale=None, 
-        id="default", 
-        rendering=False, 
-        mask=False 
+        id=None, 
+        rendering=None, 
+        mask=None 
     ):
     """
     Generate an evalscript for SentinelHub requests. The script is dinamically generated with the values provided.
 
+    DOC: https://docs.sentinel-hub.com/api/latest/evalscript/v3/
+    
     Arguments:
         bands (list | None): Bands to include, e.g. `"B02"` or `["B02", "B03", "B04"]`.
         units (str | None): Units of the input bands (e.g. "DN", "REFLECTANCE"). If None, omitted.
         data_type (str | None): Data type for input bands. If None, omitted.
         mosaicking_type (str | None): Type of mosaicking. If None, omitted.
         bit_scale (str | None): Bit scale of output bands. If None, omitted.
-        id (str): Response ID. Default is `"default"`.
-        rendering (bool): Whether to apply rendering/visualization. Default is `False`.
-        mask (bool): Whether to output mask. Default is `False`.
+        id (str): Response ID. If None, omitted.
+        rendering (bool): Whether to apply rendering/visualization. If None, omitted.
+        mask (bool): Whether to output mask. If None, omitted.
 
     Returns:
         evalscript (str): The generated evalscript for SentinelHub image request.
     """
-    input_bands = bands
-    output_bands = bands
-    bands_str = ", ".join([f'"{band}"' for band in input_bands])
+    # print(bands)
+    output_bands = list(reversed(bands))
+    # print(output_bands)
+    # print(', '.join([f'sample.{band}' for band in output_bands]))
+    bands_str = ", ".join([f'"{band}"' for band in bands])
 
     # Build optional parts dynamically
     input_options = [f"bands: [{bands_str}]"]
@@ -143,12 +149,19 @@ def generate_evalscript(
     if mosaicking_type is not None:
         input_options.append(f'mosaicking: "{mosaicking_type}"')
 
-    output_options = [f"bands: {len(output_bands)}", f'id: "{id}"']
+    output_options = [f"bands: {len(output_bands)}"]
+
+    if id is not None:
+        output_options.append(f'id: "{id}"')
     if bit_scale is not None:
         output_options.append(f'sampleType: "{bit_scale}"')
-    output_options.append(f"rendering: {str(rendering).lower()}")
-    output_options.append(f"mask: {str(mask).lower()}")
+    if rendering is not None and type(rendering) == bool:
+        output_options.append(f"rendering: {str(rendering).lower()}")
+    if mask is not None and type(mask) == bool:
+        output_options.append(f"mask: {str(mask).lower()}")
 
+    output = ", ".join([f"sample.{band}" for band in output_bands])
+    
     evalscript = f"""
     //VERSION=3
 
@@ -164,7 +177,7 @@ def generate_evalscript(
     }}
 
     function evaluatePixel(sample) {{
-        return [{', '.join([f'sample.{band}' for band in output_bands])},];
+        return [{output},];
     }}
     """
     return evalscript
@@ -201,3 +214,32 @@ def save_tiff(image: np.ndarray, filename: str, bbox, crs="EPSG:4326"):
         else:
             for i in range(count):
                 dst.write(image[:, :, i], i + 1)
+
+def perform_image_sanity_check(lat, lon, image_bytes):
+    """
+    Perform a sanity check over the response's image
+    Arguments:
+        image_bytes (bytes): Sentinel Hub request image in bytes format.
+        lat (float): Latitude.
+        lon (float): Longitude.
+    Return:
+        has_imagery (bool): If True, there is a valid image in the response.
+    """
+    has_imagery = True
+    
+    # # Quick sanity check: if file is too small, probably "no imagery"
+    # if len(image_bytes) < 15_000:  # tweak threshold as needed
+    #     print(f"No imagery (small file) at {lat},{lon}")
+    #     return False
+
+    # Check if the image is mainly white (no imagery available)
+    iamge_converted = Image.open(io.BytesIO(image_bytes)).convert("L")
+    arr = np.array(iamge_converted)
+    std_val = np.std(arr)
+
+    # If almost all pixels are very bright (white background) and there's little variation, it's probably "no imagery"
+    if np.mean(arr) > 230 and std_val < 15:
+        print(f"No imagery available for {lat},{lon}")
+        has_imagery = False
+    
+    return has_imagery
