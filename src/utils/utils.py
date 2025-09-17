@@ -4,7 +4,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
-from PIL import Image
 
 
 def imread(path: Path) -> np.ndarray:

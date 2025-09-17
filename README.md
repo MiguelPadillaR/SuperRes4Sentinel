@@ -3,7 +3,7 @@ The SuperRes4Sentinel module has been developed as part of the image enhancing p
 
 ## Features:
 - Enhancing of true color RGB pictures from Sentinel.
-
+- Scripts that allow batch downloading for HiRes-LoRes RBG image pairs and separate Sentinel bands.
 ## Installation
 ### Requirements
 - **A CONDA environment is heavily encouraged**, as it usually is more solid and problems are easier to pinpoint, but **Python's standard virtual environments will also do** with minor adjustments.
@@ -12,7 +12,11 @@ The SuperRes4Sentinel module has been developed as part of the image enhancing p
     - **A Google Maps Static API key**. Really, any Google project with an API key will do, the usage of GMS is well within the free tier for minor scales experimentation.
 
 ### Setup
-
+> NaN
+```bash
+conda env create -f environment-yml -y
+conda activate sr4s_env
+```
 
 ## Quickstart
 Most of the modules run as scripts. Each one has a brief general description and parameters overview using the `-h` or `--help` option. All of them run on default parameters when no options values are specified. Most of these values can be found and modified in the `constants.py` file, but we recommend you tweak it in the options directly.
@@ -21,17 +25,33 @@ All of these scripts are run from root:
 ```
 cd SuperRes4Sentinel/
 ```
+## Use L1BSR model (recommended):
 ### Image retrieval
+**The L1BSR works with image bands**, specifically the GRB and NI bands (**B02, B03, B04 and B08**). The following script downloads each band in separate files for as many images as you indicate. Default is 30:
+```bash
+python -m src.scripts.im.get_image_bands
+```
+All files will follow the `lat_lon-band.tiff` format and will be saved in the `data/bands` directory, which we will use as input for the SR script. **If you are downloading bands on your own, make sure to put them all in the same folder and follow the `filename-band.tiff` convention**. Else, the SR script won't find the files when searching the directory. You can dabble with the SR script code to change that to your liking. 
+### Training:
+We are using the `REC_Real_L1B.safetensors` model trained for the [L1BSR-GUI](https://github.com/Topping1/L1BSR-GUI.git) project, so no need to train anything here.
+
+### Super-resolution:
+The only mandatory argument for this script is the input directory where all band images are found. In our case, we will use the set directoy of `data/bands`
+```bash
+python -m src.scripts.sr.get_sr_image --input data/bands
+```
+## Train and test own model
+#### Image retrieval
 In order to build a model, you will need images to train it with. Use the following to get 500 image pairs to train with:
 ```bash
-python -m src.pipelines.get_image_pairs
+python -m src.scripts.im.get_image_pairs
 ```
-### Training
+#### Training
 Use the following to build an EDSR model with a x4 scaling factor. Best model will be selected from among 500 epochs:
 ```bash
 python -m src.train
 ```
-### Inference
+#### Inference
 Whenever you are ready to try your model, you will need to indicate the positional argument for `images`, wither with one or several filepaths of the images to super-resolve or a dir contaitning such images:
 ```bash
 python -m src.infer path/to/your/LR/images
@@ -98,3 +118,5 @@ SuperRes4Sentinel
 └── requirements.txt
 
 ```
+# Acknowledgements
+The L1BSR implementation comes from the [L1BSR-GUI](https://github.com/Topping1/L1BSR-GUI.git) repository. More information about original project at [`SuperRes4Sentinel/src/scripts/sr/README.md`](src/scripts/sr/README.md)

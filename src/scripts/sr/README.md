@@ -1,5 +1,5 @@
 # Attribution and License
-This pipeline is built upon the core model and concepts from the [L1BSR-GUI](https://github.com/Topping1/L1BSR-GUI.git), which is sourced on the L1BSR project. The AI model architecture (RCAN) and processing logic are derived from their original work.
+This script is built upon the core model and concepts from the [L1BSR-GUI](https://github.com/Topping1/L1BSR-GUI.git), which is sourced on the L1BSR project. The AI model architecture (RCAN) and processing logic are derived from their original work.
 
 - Original Repository: https://github.com/centreborelli/L1BSR
 
