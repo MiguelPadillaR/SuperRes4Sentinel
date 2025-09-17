@@ -13,7 +13,7 @@ from PIL import Image
 from ...utils.constants import SR_5M_DIR
 from ...utils.utils import make_grid
 from .utils import percentile_stretch, stack_bgrn
-from .L1BSR_wrapper import L1BSR  # wrapper that loads RCAN & runs SR
+from .L1BSR_wrapper import L1BSR
 
 def save_rgb_png(sr, out_path):
     """Save SR result as stretched RGB PNG"""
@@ -39,11 +39,17 @@ def save_comparison_grid(orig_rgb, sr_rgb, out_path):
     Image.fromarray(grid).save(out_path)
 
 def process_directory(input_dir, output_dir):
+    """
+    Process directory where image bands are found for all images found and super-resolves them. Saves SR image and comparison image between original and SR version.
+    Arguments:
+        input_dir (str | Path): Input directory path
+        output_dir (str | Path): Output directory path
+    """
     all_files = glob.glob(os.path.join(input_dir, "*.tif*"))
     groups = {}
 
     for f in all_files:
-        base = os.path.basename(f)
+        base = os.path.basename(f)  # assumes filenames are: name-band.tiff
         if "-" not in base:
             continue
         filename, ext = os.path.splitext(base)

@@ -15,9 +15,10 @@ SR_5M_DIR = RES_DIR / "sr_5m"
 DELTA_DAYS = 10
 LAT_MIN, LAT_MAX = 37.230328, 43.109004  # Andalusia, Spain: 36.125397, 38.682026
 LON_MIN, LON_MAX = -8.613281, -1.878662  # Andalusia, Spain: -7.344360, -1.796265
-SIZE = 500 # 255  # image size in pixels (width, height)
+SIZE = 1000 # 255  # image size in pixels (width, height)
 TILE_SIZE_ESRI = 256  # ESRI tiles are always 256x256 px
 ZOOM = 17   # zoom level for Google Maps, ESRI and Sentinel-2
+MAX_BBOX_METERS = 1500
 
 REFLECTANCE_SCALE = 400.0
 
