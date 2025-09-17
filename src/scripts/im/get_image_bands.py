@@ -3,7 +3,7 @@ import argparse
 import time
 from datetime import datetime, timedelta
 
-from sentinelhub import SHConfig, DataCollection, MimeType, SentinelHubRequest
+from sentinelhub import SHConfig, DataCollection, MimeType, SentinelHubRequest, bbox_to_dimensions
 from .sh_config import CONFIG_NAME
 from .utils import *
 from src.utils.constants import *
@@ -29,8 +29,9 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript):
         filename (str): Filename to save the image.
         evalscript (str): Javascript code that defines how the satellite data shall be retrieved and processed.
     """
-
-    bbox = get_bbox_from_zoom(lat, lon, size, zoom)
+    resolution = 10
+    bbox = get_bbox_from_center(lat, lon, size[0], size[-1], resolution)
+    width, height = bbox_to_dimensions(bbox, resolution=resolution)
 
     # Get a range of dates to ensure cloud-free scenes
     now = datetime.now()
@@ -43,14 +44,14 @@ def download_sentinel_image(lat, lon, size, zoom, filename, evalscript):
         evalscript=evalscript,
         input_data=[
             SentinelHubRequest.input_data(
-                DataCollection.SENTINEL2_L1C.define_from("s2l1c", service_url=config.sh_base_url),
+                DataCollection.SENTINEL2_L2A.define_from("s2l2a", service_url=config.sh_base_url),
                 time_interval=(initial_date, final_date),
                 maxcc=0.2  # maximum cloud coverage (20%)
             )
         ],
         responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
         bbox=bbox,
-        size=size,
+        size=(width, height),
         config=config,
     )
     # Retieve imagen band and save it
@@ -77,8 +78,10 @@ def download_image_bands(lat, lon, size, zoom, bands=None):
         # Get script that will retrieve  image bands
         evalscript_band = generate_evalscript(
             bands=[band],
-            units="DN",
-            bit_scale="UINT16"
+            # units="DN",
+            # data_type="UINT16",
+            # bit_scale="UNINT8",
+            # resampling= "BICUBIC"
         )
 
         download_sentinel_image(lat, lon, size, zoom, filename, evalscript_band)

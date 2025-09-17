@@ -10,11 +10,11 @@ from src.utils.constants import LAT_MIN, LAT_MAX, LON_MIN, LON_MAX
 
 def get_bbox_from_zoom(lat, lon, size, zoom):
     """
-    Compute a bounding box in WGS84 matching Google Maps Static API tile.
+    Compute a bounding box in WGS84 matching Google Maps' zoom level.
     
     lat, lon: center coordinates
     size: (width_px, height_px)
-    zoom: Google zoom level
+    zoom: Maps' zoom level
     """
     # meters per pixel at this latitude and zoom
     mpp = 156543.03392 * math.cos(math.radians(lat)) / (2 ** zoom)
@@ -87,7 +87,39 @@ def get_zoom_from_bbox(bbox: BBox, size: tuple):
     #     crs=CRS.WGS84
     # )
     
-    return zoom, # google_bbox
+    return zoom #, google_bbox
+
+def get_bbox_from_center(lat, lon, width_px, height_px, resolution_m):
+    """
+    Compute a bounding box around a center coordinate that will produce
+    an image of (width_px, height_px) pixels at a specified resolution (meters per pixel).
+
+    Args:
+        lat, lon (float): Center coordinates.
+        width_px, height_px (int): Desired image size in pixels.
+        resolution_m (float): Desired resolution in meters per pixel.
+
+    Returns:
+        BBox: Bounding box in WGS84 suitable for SentinelHub requests.
+    """
+    # Physical size of image in meters
+    MAX_PX_SIZE = 1500
+    width_m = min(MAX_PX_SIZE, width_px * resolution_m)
+    height_m = min(MAX_PX_SIZE, height_px * resolution_m)
+
+    # Convert meters to degrees (approximate, valid near the given latitude)
+    METERS_PER_DEGREE_LAT = 111320.0
+    meters_per_degree_lon = METERS_PER_DEGREE_LAT * math.cos(math.radians(lat))
+
+    width_deg = width_m / meters_per_degree_lon
+    height_deg = height_m / METERS_PER_DEGREE_LAT
+
+    min_lon = lon - width_deg / 2
+    max_lon = lon + width_deg / 2
+    min_lat = lat - height_deg / 2
+    max_lat = lat + height_deg / 2
+
+    return BBox(bbox=[min_lon, min_lat, max_lon, max_lat], crs=CRS.WGS84)
 
 def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, LON_MIN, LON_MAX]):
     """
@@ -109,12 +141,13 @@ def get_n_random_coordinate_pairs(amount:int, bounded_zone = [LAT_MIN, LAT_MAX, 
 def generate_evalscript(
         bands=["B02", "B03", "B04"], 
         units=None, 
-        data_type="UINT8", 
+        data_type=None, 
         mosaicking_type=None, 
-        bit_scale=None, 
+        bit_scale="AUTO", 
         id=None, 
         rendering=None, 
-        mask=None 
+        mask=None,
+        resampling=None
     ):
     """
     Generate an evalscript for SentinelHub requests. The script is dinamically generated with the values provided.
@@ -123,21 +156,19 @@ def generate_evalscript(
     
     Arguments:
         bands (list | None): Bands to include, e.g. `"B02"` or `["B02", "B03", "B04"]`.
-        units (str | None): Units of the input bands (e.g. "DN", "REFLECTANCE"). If None, omitted.
+        units (str | None): Units of the input bands (e.g. `"DN"`, `"REFLECTANCE"`). If None, omitted.
         data_type (str | None): Data type for input bands. If None, omitted.
         mosaicking_type (str | None): Type of mosaicking. If None, omitted.
-        bit_scale (str | None): Bit scale of output bands. If None, omitted.
+        bit_scale (str | None): Bit scale of output bands. If None, `"AUTO"`.
         id (str): Response ID. If None, omitted.
         rendering (bool): Whether to apply rendering/visualization. If None, omitted.
         mask (bool): Whether to output mask. If None, omitted.
+        resampling (str):
 
     Returns:
         evalscript (str): The generated evalscript for SentinelHub image request.
     """
-    # print(bands)
     output_bands = list(reversed(bands))
-    # print(output_bands)
-    # print(', '.join([f'sample.{band}' for band in output_bands]))
     bands_str = ", ".join([f'"{band}"' for band in bands])
 
     # Build optional parts dynamically
@@ -159,8 +190,11 @@ def generate_evalscript(
         output_options.append(f"rendering: {str(rendering).lower()}")
     if mask is not None and type(mask) == bool:
         output_options.append(f"mask: {str(mask).lower()}")
+    if resampling is not None:
+        output_options.append(f'mask: "{resampling}"')
 
-    output = ", ".join([f"sample.{band}" for band in output_bands])
+    factor =  " * 255" if bit_scale=="UINT8" else ''
+    output = ", ".join([f"sample.{band  + factor}" for band in output_bands]) if len(output_bands) > 1 else f"sample.{output_bands[0] + factor}"
     
     evalscript = f"""
     //VERSION=3
@@ -168,10 +202,10 @@ def generate_evalscript(
     function setup() {{
         return {{
             input: [{{
-                {', '.join(input_options)}
+                {',\n\t\t'.join(input_options)}
             }}],
             output: {{
-                {', '.join(output_options)}
+                {',\n\t\t'.join(output_options)}
             }}
         }};
     }}
@@ -180,6 +214,8 @@ def generate_evalscript(
         return [{output},];
     }}
     """
+    print(f"\nEVALSCRIPT:\n{evalscript}\n")
+
     return evalscript
 
 def save_tiff(image: np.ndarray, filename: str, bbox, crs="EPSG:4326"):
