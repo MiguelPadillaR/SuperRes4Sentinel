@@ -17,9 +17,10 @@ from .L1BSR_wrapper import L1BSR
 
 def save_rgb_png(sr, out_path):
     """Save SR result as stretched RGB PNG"""
-    rgb = np.stack([sr[..., 2], sr[..., 1], sr[..., 0]], axis=-1)  # B04,R / B03,G / B02,B
+    rgb = sr[..., :3]  # already [R,G,B]
     rgb_u8 = percentile_stretch(rgb)
     Image.fromarray(rgb_u8).save(out_path)
+    return rgb_u8
 
 def save_multiband_tif(sr, reference_band, out_path):
     """Optionally save SR result as multiband GeoTIFF using metadata from reference band"""
@@ -52,7 +53,7 @@ def process_directory(input_dir, output_dir):
         base = os.path.basename(f)  # assumes filenames are: name-band.tiff
         if "-" not in base:
             continue
-        filename, ext = os.path.splitext(base)
+        filename, __ = os.path.splitext(base)
         prefix, band = filename.rsplit("-", 1)
         if prefix not in groups:
             groups[prefix] = {}
@@ -77,8 +78,8 @@ def process_directory(input_dir, output_dir):
         rgb_before_u8_resized = np.array(Image.fromarray(rgb_before_u8).resize((w*2, h*2), cv2.INTER_NEAREST))
 
         # Save original (preview) PNG
-        orig_png = os.path.join(SR_5M_DIR, f"lol.png")
-        Image.fromarray(rgb_before_u8).save(orig_png)
+        # orig_png = os.path.join(SR_5M_DIR, f"original_rgb.png")
+        # Image.fromarray(rgb_before_u8).save(orig_png)
 
         # Stack input
         img_bgrn = stack_bgrn(
@@ -93,15 +94,12 @@ def process_directory(input_dir, output_dir):
 
         # Save PNG
         out_png = os.path.join(output_dir, f"{prefix}.png")
-        save_rgb_png(sr_u16, out_png)
+        rgb_u8 = save_rgb_png(sr_u16, out_png)
         print(f"Saved PNG: {out_png}")
 
         # Make and save comparison grid
         comp_png = COMP_DIR / f"{prefix}_comparison.png"
-        grid = make_grid([rgb_before_u8_resized,
-                        percentile_stretch(np.stack([sr_u16[...,2], sr_u16[...,1], sr_u16[...,0]], axis=-1))],
-                        ncols=2
-        )
+        grid = make_grid([rgb_before_u8_resized,rgb_u8], ncols=2)
         Image.fromarray(grid).save(comp_png)
         print(f"Saved comparison grid: {comp_png}")
 
